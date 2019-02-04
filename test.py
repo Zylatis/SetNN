@@ -40,5 +40,8 @@ for i in os.listdir("imgs/isolated/"):
 		new_im = imresize(im, size = new_size)
 		new_im = np.pad(new_im, pad_width = ((pad_x,pad_x),(pad_y,pad_y),(0,0)), mode = 'constant', constant_values = (255,255)) #
 		plt.imshow(new_im, interpolation='nearest')
-		plt.savefig("imgs/processed/proc_img" + str(count) +".png" )
+		print new_im.shape
+		plt.savefig("imgs/processed/proc_img" + str(count) +".png" , mode='RGB')
+		# test = imread("imgs/processed/proc_img" + str(count) +".png")
+		# print test.shape
 		count = count + 1
