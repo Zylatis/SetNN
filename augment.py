@@ -1,5 +1,9 @@
 from imgaug import augmenters as iaa
 import numpy as np
+# import cv2
+import os
+import matplotlib
+matplotlib.use('Agg')   
 from matplotlib.image import imread
 from matplotlib import pyplot as plt
 
@@ -15,5 +19,7 @@ seq = iaa.Sequential([
     iaa.GaussianBlur(sigma=(0, 3.0)) # blur images with a sigma of 0 to 3.0
 ])
 
-
 images_aug = seq.augment_images(imgs)  # done by the library
+for i in range(len(images_aug)):
+    plt.imshow(images_aug[i], interpolation='nearest')
+    plt.savefig("imgs/aug_imgs/aug_img" + str(i) +".png" )

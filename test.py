@@ -1,9 +1,10 @@
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')  
 from matplotlib.image import imread
 from matplotlib import pyplot as plt
 import os
 from scipy.misc import imresize
-# from skimage.transform import resize
 from skimage.measure import block_reduce
 
 
@@ -19,7 +20,7 @@ def crop_center(img,cropx,cropy):
 imgs = []
 target_x = 100
 target_y = 100
-
+count = 0
 for i in os.listdir("imgs/isolated/"):
 	if i.endswith('.png'):
 		im = imread("imgs/isolated/"+str(i))
@@ -39,4 +40,5 @@ for i in os.listdir("imgs/isolated/"):
 		new_im = imresize(im, size = new_size)
 		new_im = np.pad(new_im, pad_width = ((pad_x,pad_x),(pad_y,pad_y),(0,0)), mode = 'constant', constant_values = (255,255)) #
 		plt.imshow(new_im, interpolation='nearest')
-		plt.savefig("imgs/processed/proc_img" + str(i) +".png" )
+		plt.savefig("imgs/processed/proc_img" + str(count) +".png" )
+		count = count + 1
