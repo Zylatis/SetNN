@@ -1,12 +1,9 @@
 import numpy as np
-import matplotlib
-matplotlib.use('Agg')  
-from matplotlib.image import imread
-from matplotlib import pyplot as plt
 import os
 from scipy.misc import imresize
 from skimage.measure import block_reduce
 imgs_folder = "../imgs/"
+from PIL import Image # gives better output control than matplotlib
 
 
 # Shamelessly pinched but I get it anyway
@@ -21,9 +18,11 @@ imgs = []
 target_x = 100
 target_y = 100
 count = 0
+labels = []
 for i in os.listdir( imgs_folder + "isolated/"):
 	if i.endswith('.png'):
-		im = imread( imgs_folder + "isolated/"+str(i))
+
+		im = np.asarray(Image.open( imgs_folder + "isolated/"+str(i) ))
 		imgs.append(im)
 		x,y,z = im.shape
 		aspect = y/(1.*x)
@@ -39,9 +38,7 @@ for i in os.listdir( imgs_folder + "isolated/"):
 
 		new_im = imresize(im, size = new_size)
 		new_im = np.pad(new_im, pad_width = ((pad_x,pad_x),(pad_y,pad_y),(0,0)), mode = 'constant', constant_values = (255,255)) #
-		plt.imshow(new_im, interpolation='nearest')
-	
-		plt.savefig(imgs_folder + "processed/proc_img" + str(count) +".png" , mode='RGB')
-		# test = imread("imgs/processed/proc_img" + str(count) +".png")
-		# print test.shape
+		
+		im = Image.fromarray(new_im)
+		im.save(imgs_folder + "processed/proc_img_ "+ str(i) )
 		count = count + 1

@@ -1,22 +1,11 @@
 from imgaug import augmenters as iaa
 import imgaug as ia
 import numpy as np
-# import cv2
 import os
-import matplotlib
-matplotlib.use('Agg')   
-from matplotlib.image import imread
-from matplotlib import pyplot as plt
-imgs_folder = "../imgs/"
+from PIL import Image # gives better output control than matplotlib
+import random
 
-imgs = []
-for i in os.listdir( imgs_folder + "processed/"):
-    if i.endswith('.png'):
-        im = imread( + imgs_folder + "processed/"+str(i)).astype(np.uint8)
-        imgs.append(im)
-        print im.shape
 
-exit(0)
 # Sometimes(0.5, ...) applies the given augmenter in 50% of all cases,
 # e.g. Sometimes(0.5, GaussianBlur(0.3)) would blur roughly every second image.
 sometimes = lambda aug: iaa.Sometimes(0.5, aug)
@@ -37,7 +26,6 @@ seq = iaa.Sequential(
             pad_cval=(0, 255)
         )),
         sometimes(iaa.Affine(
-            # scale={"x": (0.8, 1.2), "y": (0.8, 1.2)}, # scale images to 80-120% of their size, individually per axis
             translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)}, # translate by -20 to +20 percent (per axis)
             rotate=(-45, 45), # rotate by -45 to +45 degrees
             shear=(-16, 16), # shear by -16 to +16 degrees
@@ -68,7 +56,7 @@ seq = iaa.Sequential(
                     iaa.Dropout((0.01, 0.1), per_channel=0.5), # randomly remove up to 10% of the pixels
                     iaa.CoarseDropout((0.03, 0.15), size_percent=(0.02, 0.05), per_channel=0.2),
                 ]),
-                iaa.Invert(0.05, per_channel=True), # invert color channels
+                # iaa.Invert(0.05, per_channel=True), # invert color channels
                 iaa.Add((-10, 10), per_channel=0.5), # change brightness of images (by -10 to 10 of original value)
                 iaa.AddToHueAndSaturation((-20, 20)), # change hue and saturation
                 # either change the brightness of the whole image (sometimes
@@ -83,8 +71,8 @@ seq = iaa.Sequential(
                 ]),
                 iaa.ContrastNormalization((0.5, 2.0), per_channel=0.5), # improve or worsen the contrast
                 iaa.Grayscale(alpha=(0.0, 1.0)),
-                sometimes(iaa.ElasticTransformation(alpha=(0.5, 3.5), sigma=0.25)), # move pixels locally around (with random strengths)
-                sometimes(iaa.PiecewiseAffine(scale=(0.01, 0.05))), # sometimes move parts of the image around
+                # sometimes(iaa.ElasticTransformation(alpha=(0.5, 3.5), sigma=0.25)), # move pixels locally around (with random strengths)
+                # sometimes(iaa.PiecewiseAffine(scale=(0.01, 0.05))), # sometimes move parts of the image around
                 sometimes(iaa.PerspectiveTransform(scale=(0.01, 0.1)))
             ],
             random_order=True
@@ -94,7 +82,25 @@ seq = iaa.Sequential(
 )
 
 
-images_aug = seq.augment_images(imgs)  # done by the library
+imgs_folder = "../imgs/"
+
+imgs = []
+
+
+for i in os.listdir( imgs_folder + "processed/"):
+    if i.endswith('.png'):
+        # label = ('_').(i[:-4]).split('_')[2:]
+
+        im = np.asarray(Image.open( imgs_folder + "processed/"+str(i) )).astype(np.uint8)
+        imgs.append(im)
+exit(0)
+n_replicates = 1
+n_raw = len(imgs)
+rand_list = [random.randrange( n_raw ) for i in range( n_raw * n_replicates )]
+
+imgs_replicated = [ imgs[i] for i in rand_list]
+
+images_aug = seq.augment_images(imgs_replicated)  # done by the library
 for i in range(len(images_aug)):
-    plt.imshow(images_aug[i], interpolation='nearest')
-    plt.savefig( imgs_folder + "aug_imgs/aug_img" + str(i) +".png" )
+    im = Image.fromarray(images_aug[i])
+    im.save( imgs_folder + "aug_imgs/aug_img" + str(i) +".png")
