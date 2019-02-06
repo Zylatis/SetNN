@@ -15,8 +15,8 @@ def crop_center(img,cropx,cropy):
 
 
 imgs = []
-target_x = 100
-target_y = 100
+target_x = 250
+target_y = 250
 count = 0
 labels = []
 for i in os.listdir( imgs_folder + "isolated/"):
@@ -28,12 +28,12 @@ for i in os.listdir( imgs_folder + "isolated/"):
 		aspect = y/(1.*x)
 
 		if x > y:
-			new_size = (100,int(100*aspect))
-			pad_y = int((100-new_size[1])/2.)
+			new_size = (target_x,int(target_y*aspect))
+			pad_y = int((target_y-new_size[1])/2.)
 			pad_x = 0
 		else:
-			new_size =  (int(100/aspect),100)
-			pad_x = int((100-new_size[0])/2.)
+			new_size =  (int(target_x/aspect),target_y)
+			pad_x = int((target_x-new_size[0])/2.)
 			pad_y = 0
 
 		new_im = imresize(im, size = new_size)
