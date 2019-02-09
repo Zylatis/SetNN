@@ -8,85 +8,105 @@ import datetime
 import sklearn.model_selection as sk
 from sklearn.preprocessing import StandardScaler
 from operator import mul
-
+import copy
 
 imgs_folder = "../imgs/aug_imgs/"
 class_map, inverse_class_map = classes.get_labels()
 
 labels = np.loadtxt( "../imgs/labels.dat").astype(np.int32)
-n_data = len(labels)
 
+n_data = len(labels)
 n_classes = len(class_map)
+
+empty = np.zeros(n_classes)
+label_vectors = []
+for label in labels:
+	temp  = copy.deepcopy( empty )
+	temp[label] = 1.
+	label_vectors.append(temp)
+
+label_vectors = np.array(label_vectors)
 imgs = []
 
 
 for i in range(n_data):
     im = np.asarray(Image.open( imgs_folder +str(i) + '.png' ))
-    im = tf.convert_to_tensor(im, dtype=tf.float32)
     imgs.append(im)
 
 x_dim, y_dim, n_channels = im.shape
-print im.shape
-# manually check if labels line up 
-# for label in labels:
-	# print inverse_class_map[label]
 
+imgs = np.asarray(imgs)
+labels = np.asarray(labels)
+img_train, img_test, class_train, class_test = sk.train_test_split(imgs,labels,test_size=0.1 )
+n_train = len(img_train)
 
-# img_train, img_test, class_train, class_test = sk.train_test_split(imgs,labels,test_size=0.10 )
-# scaler = StandardScaler().fit(img_train)
-# input_layer = tf.reshape(img_train, [-1, x_dim, y_dim, n_channels])
+learning_rate = 0.01
+epochs = 1
+n_threads = 1
+batch_size = int(round(0.1*n_train))
 
-learning_rate = 0.1
 with tf.name_scope("Input"):
 	inp = tf.placeholder(tf.float32, [None, x_dim,y_dim,n_channels], name = "input")
 
 with tf.name_scope("Output"):
-	out = tf.placeholder(tf.int32, [n_classes], name = "output")
+	out = tf.placeholder(tf.int32, [None], name = "output")
 
 
 with tf.name_scope("layers"):
-	# # Convolutional Layer #1
+	# Convolutional Layer #1
 	conv1 = tf.layers.conv2d(
 	  inputs=inp,
-	  filters=12,
+	  filters=32,
 	  data_format = 'channels_last',
 	  kernel_size=[5, 5],
 	  padding="same",
 	  activation=tf.nn.relu)
 
-	# # Pooling Layer #1
-	pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[4, 4], strides=4)
+	# Pooling Layer #1
+	pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[2, 2], strides=2)
 
-	# # Convolutional Layer #2 and Pooling Layer #2
+	# Convolutional Layer #2 and Pooling Layer #2
 	conv2 = tf.layers.conv2d(
 	  inputs=pool1,
-	  filters=24,
+	  filters=64,
 	  kernel_size=[5, 5],
 	  padding="same",
 	  data_format = 'channels_last',
 	  activation=tf.nn.relu)
-	pool2 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[4, 4], strides=4)
-	pool2_flat = tf.reshape(pool2, [-1, 16*16*24])
-	dense = tf.layers.dense(inputs=pool2_flat, units=512, activation=tf.nn.relu)
-	dropout = tf.layers.dropout(inputs=dense, rate=0.4)
-	# Logits Layer
-	logits = tf.layers.dense(inputs=dropout, units = n_classes)
+	pool2 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
+	pool2_flat =tf.reshape(pool2, [-1, 1 * 4 * 64])
+	dense = tf.layers.dense(inputs=pool2_flat, units=10, activation=tf.nn.relu)
+	logits = tf.layers.dense(inputs=dense, units = n_classes)
+
 
 
 with tf.name_scope("Cost"):
 	cost = tf.losses.sparse_softmax_cross_entropy(labels=out, logits=logits)
 	
 with tf.name_scope("Train"):
-# add optimizer
 	optimiser = tf.train.AdamOptimizer( learning_rate ).minimize(cost)
 
-# # Dense Layer
-
-print inp
-print conv1
-print pool1
-print conv2
 print pool2
 print pool2_flat
 print dense
-# print logits
+print logits
+print out
+
+init_op = tf.global_variables_initializer()
+config = tf.ConfigProto(intra_op_parallelism_threads = n_threads, inter_op_parallelism_threads = n_threads, allow_soft_placement = True)
+
+with tf.Session(config=config) as sess:
+	sess.run(init_op)
+
+
+	for epoch in range(epochs):
+			batch_pos = random.sample(range(0,n_train), batch_size)
+
+			with tf.name_scope("Batch_selection"):
+				batch_x = img_train[batch_pos]
+				batch_y = class_train[batch_pos]
+			
+			print sess.run(logits, feed_dict={inp: batch_x, out: batch_y} ).shape
+			print sess.run(out, feed_dict={inp: batch_x, out: batch_y} ).shape
+			# _, c = sess.run([optimiser, cost], feed_dict={inp: batch_x, out: batch_y})
+			# print c
