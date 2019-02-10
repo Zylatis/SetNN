@@ -41,10 +41,17 @@ img_train, img_test, class_train, class_test = sk.train_test_split(imgs,labels,t
 n_train = len(img_train)
 
 learning_rate = 0.01
-epochs = 1
+epochs = 100
 n_threads = 1
 batch_size = int(round(0.1*n_train))
 
+
+print("### Setup ###")
+print("Number of inputs: ", n_data)
+print("Number of classes: ", n_classes)
+print("X: ", x_dim, ", Y: ", y_dim)
+print("Batch size: ", batch_size )
+print(" Number epochs: ", epochs)
 with tf.name_scope("Input"):
 	inp = tf.placeholder(tf.float32, [None, x_dim,y_dim,n_channels], name = "input")
 
@@ -74,29 +81,38 @@ with tf.name_scope("layers"):
 	  data_format = 'channels_last',
 	  activation=tf.nn.relu)
 	pool2 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
-	pool2_flat =tf.reshape(pool2, [-1, 1 * 4 * 64])
-	dense = tf.layers.dense(inputs=pool2_flat, units=10, activation=tf.nn.relu)
+	pool2_flat =tf.reshape(pool2, [-1, x_dim/4 * y_dim/4 * 64])
+	dense = tf.layers.dense(inputs=pool2_flat, units=512, activation=tf.nn.relu)
 	logits = tf.layers.dense(inputs=dense, units = n_classes)
 
 
 
 with tf.name_scope("Cost"):
 	cost = tf.losses.sparse_softmax_cross_entropy(labels=out, logits=logits)
+	acc, acc_op = tf.metrics.accuracy(labels=out, predictions=tf.argmax(logits, 1))
 	
 with tf.name_scope("Train"):
 	optimiser = tf.train.AdamOptimizer( learning_rate ).minimize(cost)
 
-print pool2
-print pool2_flat
-print dense
-print logits
-print out
-
+# print inp
+# print out
+# print conv1
+# print pool1
+# print conv2
+# print pool2
+# print pool2_flat
+# print dense
+# print logits
+# exit(0)
+print "######################################"
 init_op = tf.global_variables_initializer()
+local_op = tf.local_variables_initializer()
+
 config = tf.ConfigProto(intra_op_parallelism_threads = n_threads, inter_op_parallelism_threads = n_threads, allow_soft_placement = True)
 
 with tf.Session(config=config) as sess:
 	sess.run(init_op)
+	sess.run(local_op)
 
 
 	for epoch in range(epochs):
@@ -106,7 +122,8 @@ with tf.Session(config=config) as sess:
 				batch_x = img_train[batch_pos]
 				batch_y = class_train[batch_pos]
 			
-			print sess.run(logits, feed_dict={inp: batch_x, out: batch_y} ).shape
-			print sess.run(out, feed_dict={inp: batch_x, out: batch_y} ).shape
-			# _, c = sess.run([optimiser, cost], feed_dict={inp: batch_x, out: batch_y})
-			# print c
+
+			_, c = sess.run([optimiser, cost], feed_dict={inp: batch_x, out: batch_y})
+			a,b =  sess.run([acc,acc_op], feed_dict={inp: batch_x, out: batch_y})
+			print c,round(a,2)#,###round(b,2)
+			# exit(0)

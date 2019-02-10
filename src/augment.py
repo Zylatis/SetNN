@@ -97,7 +97,7 @@ for i in os.listdir( imgs_folder + "processed/"):
         labeled_data.append([im, class_val])
 
 
-n_replicates = 1
+n_replicates = 10
 n_raw = len(labeled_data)
 rand_list = [random.randrange( n_raw ) for i in range( n_raw * n_replicates )]
 

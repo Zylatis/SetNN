@@ -1,3 +1,4 @@
 imgs/processed/*
-imgs/aug_imgs/*
+imgs/isolated_grouped/
 imgs/raw
+imgs/isolated_orig
