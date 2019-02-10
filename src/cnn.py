@@ -10,6 +10,7 @@ from sklearn.preprocessing import StandardScaler
 from operator import mul
 import copy
 
+
 imgs_folder = "../imgs/aug_imgs/"
 class_map, inverse_class_map = classes.get_labels()
 
@@ -42,7 +43,7 @@ n_train = len(img_train)
 
 learning_rate = 0.01
 epochs = 100
-n_threads = 1
+
 batch_size = int(round(0.1*n_train))
 
 
@@ -52,6 +53,7 @@ print("Number of classes: ", n_classes)
 print("X: ", x_dim, ", Y: ", y_dim)
 print("Batch size: ", batch_size )
 print(" Number epochs: ", epochs)
+print("Test size:", len(class_test))
 with tf.name_scope("Input"):
 	inp = tf.placeholder(tf.float32, [None, x_dim,y_dim,n_channels], name = "input")
 
@@ -86,11 +88,10 @@ with tf.name_scope("layers"):
 	logits = tf.layers.dense(inputs=dense, units = n_classes)
 
 
-
 with tf.name_scope("Cost"):
 	cost = tf.losses.sparse_softmax_cross_entropy(labels=out, logits=logits)
 	acc, acc_op = tf.metrics.accuracy(labels=out, predictions=tf.argmax(logits, 1))
-	
+
 with tf.name_scope("Train"):
 	optimiser = tf.train.AdamOptimizer( learning_rate ).minimize(cost)
 
@@ -107,13 +108,16 @@ with tf.name_scope("Train"):
 print "######################################"
 init_op = tf.global_variables_initializer()
 local_op = tf.local_variables_initializer()
+saver = tf.train.Saver()
 
-config = tf.ConfigProto(intra_op_parallelism_threads = n_threads, inter_op_parallelism_threads = n_threads, allow_soft_placement = True)
+config = tf.ConfigProto( allow_soft_placement = True)
 
 with tf.Session(config=config) as sess:
 	sess.run(init_op)
 	sess.run(local_op)
-
+	# summaryMerged = tf.summary.merge_all()
+	# filename = "tensorboards/"
+	# writer = tf.summary.FileWriter(filename, sess.graph) 
 
 	for epoch in range(epochs):
 			batch_pos = random.sample(range(0,n_train), batch_size)
@@ -124,6 +128,7 @@ with tf.Session(config=config) as sess:
 			
 
 			_, c = sess.run([optimiser, cost], feed_dict={inp: batch_x, out: batch_y})
-			a,b =  sess.run([acc,acc_op], feed_dict={inp: batch_x, out: batch_y})
-			print c,round(a,2)#,###round(b,2)
-			# exit(0)
+			train_acc =  sess.run(acc, feed_dict={inp: batch_x, out: batch_y})
+			test_acc =  sess.run(acc, feed_dict={inp: img_test, out: class_test})
+			print c,round(train_acc,2),round(test_acc,2)
+			
