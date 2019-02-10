@@ -105,7 +105,7 @@ with tf.name_scope("Train"):
 # print dense
 # print logits
 # exit(0)
-print "######################################"
+print("######################################")
 init_op = tf.global_variables_initializer()
 local_op = tf.local_variables_initializer()
 saver = tf.train.Saver()
@@ -130,5 +130,5 @@ with tf.Session(config=config) as sess:
 			_, c = sess.run([optimiser, cost], feed_dict={inp: batch_x, out: batch_y})
 			train_acc =  sess.run(acc, feed_dict={inp: batch_x, out: batch_y})
 			test_acc =  sess.run(acc, feed_dict={inp: img_test, out: class_test})
-			print c,round(train_acc,2),round(test_acc,2)
+			print(c,round(train_acc,2),round(test_acc,2))
 			
