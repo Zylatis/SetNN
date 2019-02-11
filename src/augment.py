@@ -103,7 +103,7 @@ rand_list = [random.randrange( n_raw ) for i in range( n_raw * n_replicates )]
 
 replicated_data = np.asarray([ labeled_data[i] for i in rand_list])
 labels = replicated_data[:,1]
-np.savetxt("../imgs/labels.dat", labels, fmt = "%d")
+np.savetxt("../imgs/aug_labels.dat", labels, fmt = "%d")
 replicated_imgs = list(replicated_data[:,0])
 
 images_aug = seq.augment_images( replicated_imgs )  # done by the library
