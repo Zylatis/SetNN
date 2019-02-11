@@ -11,12 +11,20 @@ from operator import mul
 import copy
 import pandas as pd
 
+def my_acc( v1, v2 ):
+  count = 0.
+  n = len(v1)
+  for i in range(n):
+    if v1[i] == v2[i]:
+      count = count + 1.
+  return count/(1.*n)
+
 imgs_folder = "../imgs/aug_imgs/"
 
 class_map, inverse_class_map = classes.get_labels()
 
 
-labels = np.loadtxt( "../imgs/labels.dat").astype(np.int32)
+labels = np.loadtxt( "../imgs/aug_labels.dat").astype(np.int32)
 n = len(labels)
 labels = labels[:n]
 
@@ -46,10 +54,9 @@ img_train, img_test, class_train, class_test = sk.train_test_split(imgs,labels,t
 n_train = len(img_train)
 
 learning_rate = 0.001
-epochs = 2000
+epochs = 100000
 
-# batch_size = int(round(0.1*n_train))
-batch_size = 12
+batch_size = 32
 
 print("### Setup ###")
 print("Number of inputs: ", n_data)
@@ -58,6 +65,10 @@ print("X: ", x_dim, ", Y: ", y_dim)
 print("Batch size: ", batch_size )
 print(" Number epochs: ", epochs)
 print("Test size:", len(class_test))
+
+conv1_filters = 16
+conv2_filters = 32
+dense_size = 65  
 with tf.name_scope("Input"):
     inp = tf.placeholder(tf.float32, [None, x_dim,y_dim,n_channels], name = "input")
 
@@ -69,7 +80,7 @@ with tf.name_scope("layers"):
     # Convolutional Layer #1
     conv1 = tf.layers.conv2d(
       inputs=inp,
-      filters=16,
+      filters=conv1_filters,
       data_format = 'channels_last',
       kernel_size=[5, 5],
       padding="same",
@@ -81,20 +92,24 @@ with tf.name_scope("layers"):
     # Convolutional Layer #2 and Pooling Layer #2
     conv2 = tf.layers.conv2d(
       inputs=pool1,
-      filters=32,
+      filters=conv2_filters,
       kernel_size=[5, 5],
       padding="same",
       data_format = 'channels_last',
       activation=tf.nn.relu)
     pool2 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
-    pool2_flat =tf.reshape(pool2, [-1, int(x_dim/4) * int(y_dim/4) * 32])
-    dense = tf.layers.dense(inputs=pool2_flat, units=1024, activation=tf.nn.relu)
-    logits = tf.layers.dense(inputs=dense, units = n_classes)
+    pool2_flat =tf.reshape(pool2, [-1, int(x_dim/4) * int(y_dim/4) * conv2_filters])
+    dense = tf.layers.dense(inputs=pool2_flat, units=dense_size, activation=tf.nn.relu)
+    dropout = tf.layers.dropout(
+      inputs=dense, rate=0.4 )
+    logits = tf.layers.dense(inputs=dropout, units = n_classes)
 
+
+# with tf.name_scope("Accuracy"):
+      # acc, acc_op = tf.metrics.accuracy(labels=t1, predictions=t2)
 
 with tf.name_scope("Cost"):
     cost = tf.losses.sparse_softmax_cross_entropy(labels=out, logits=logits)
-    acc, acc_op = tf.metrics.accuracy(labels=out, predictions=tf.argmax(logits, 1))
 
 with tf.name_scope("Train"):
     optimiser = tf.train.AdamOptimizer( learning_rate ).minimize(cost)
@@ -134,24 +149,37 @@ with tf.Session(config=config) as sess:
             
 
             _, c = sess.run([optimiser, cost], feed_dict={inp: batch_x, out: batch_y})
+
+            
+
             if(epoch%100 == 0):
-                train_acc =  sess.run(acc, feed_dict={inp: batch_x, out: batch_y})
-                test_acc =  sess.run(acc, feed_dict={inp: img_test, out: class_test})
-                print(epoch, c,round(train_acc,2),round(test_acc,2))
+              batch_train_predict =  np.argmax(sess.run(logits, feed_dict={inp: batch_x}), axis = 1)
+              # train_predict =  np.argmax(sess.run(logits, feed_dict={inp: img_train}), axis = 1)
+              test_predict =  np.argmax(sess.run(logits, feed_dict={inp: img_test}), axis = 1)
+            
+              batch_train_acc = my_acc(batch_train_predict,batch_y)
+              # train_acc = my_acc(train_predict,class_train)
+              test_acc = my_acc(test_predict,class_test)
+              # print(epoch, c, round(train_acc,2), round(test_acc,2) )
+              print(epoch,c, round(batch_train_acc, 2) , round(test_acc,2))
+              if(batch_train_acc > 0.999):
+                print("Train acc > 0.999")
+                break
 
-    train_predict =  sess.run(logits, feed_dict={inp: img_train, out: class_train})
-    test_predict =  sess.run(logits, feed_dict={inp: img_test, out: class_test})
+    # train_predict =  sess.run(logits, feed_dict={inp: img_train, out: class_train})
+    # test_predict =  sess.run(logits, feed_dict={inp: img_test, out: class_test})
 
 
-summary_train = pd.DataFrame( index = range(n_train), columns = ["train_actual", "train_predict"])
-summary_train["train_actual"] = class_train
-summary_train["train_predict"] = np.argmax(train_predict, axis = 1)
-summary_train.to_csv("train_summary.csv")
 
-summary_test = pd.DataFrame( index = range(n_data - n_train), columns = ["test_actual", "test_predict"])
-summary_test["test_actual"] = class_test
-summary_test["test_predict"] = np.argmax(test_predict, axis = 1)
-summary_test.to_csv("test_summary.csv")
+# summary_train = pd.DataFrame( index = range(n_train), columns = ["train_actual", "train_predict"])
+# summary_train["train_actual"] = class_train
+# summary_train["train_predict"] = np.argmax(train_predict, axis = 1)
+# summary_train.to_csv("train_summary.csv",encoding="utf-8")
 
-print(summary_train)
-print(summary_test)
+# summary_test = pd.DataFrame( index = range(n_data - n_train), columns = ["test_actual", "test_predict"])
+# summary_test["test_actual"] = class_test
+# summary_test["test_predict"] = np.argmax(test_predict, axis = 1)
+# summary_test.to_csv("test_summary.csv",encoding="utf-8")
+
+# print(summary_train)
+# print(summary_test)

@@ -6,6 +6,7 @@ from PIL import Image # gives better output control than matplotlib
 import random
 import classes
 
+
 # Sometimes(0.5, ...) applies the given augmenter in 50% of all cases,
 # e.g. Sometimes(0.5, GaussianBlur(0.3)) would blur roughly every second image.
 sometimes = lambda aug: iaa.Sometimes(0.5, aug)
@@ -35,7 +36,7 @@ seq = iaa.Sequential(
         )),
         # execute 0 to 5 of the following (less important) augmenters per image
         # don't execute all of them, as that would often be way too strong
-        iaa.SomeOf((0, 2),
+        iaa.SomeOf((0, 5),
             [
                 sometimes(iaa.Superpixels(p_replace=(0, 1.0), n_segments=(20, 200))), # convert images into their superpixel representation
                 iaa.OneOf([
@@ -57,7 +58,7 @@ seq = iaa.Sequential(
                     iaa.CoarseDropout((0.03, 0.15), size_percent=(0.02, 0.05)),
                 ]),
                 # iaa.Invert(0.05, per_channel=True), # invert color channels
-                # iaa.Add((-10, 10), per_channel=0.5), # change brightness of images (by -10 to 10 of original value)
+                iaa.Add((-10, 10), per_channel=0.5), # change brightness of images (by -10 to 10 of original value)
                 # iaa.AddToHueAndSaturation((-20, 20)), # change hue and saturation
                 # either change the brightness of the whole image (sometimes
                 # per channel) or change the brightness of subareas
@@ -86,18 +87,18 @@ imgs_folder = "../imgs/"
 
 labeled_data = []
 class_map, inverse_class_map = classes.get_labels()
-
+classes_seen = []
 # can think about best way to represent output: do we make each card unique
 # or fit on subfeatures as a vector output (colour etc)
 for i in os.listdir( imgs_folder + "processed/"):
     if i.endswith('.png'):
         label =  ("_").join(  (i[:-4]).split('_')[2:6] ).strip()
         class_val = class_map[label]
+        classes_seen.append(class_val)
         im = np.asarray(Image.open( imgs_folder + "processed/"+str(i) )).astype(np.uint8)
         labeled_data.append([im, class_val])
 
-
-n_replicates = 10
+n_replicates = 100
 n_raw = len(labeled_data)
 rand_list = [random.randrange( n_raw ) for i in range( n_raw * n_replicates )]
 
@@ -105,7 +106,7 @@ replicated_data = np.asarray([ labeled_data[i] for i in rand_list])
 labels = replicated_data[:,1]
 np.savetxt("../imgs/aug_labels.dat", labels, fmt = "%d")
 replicated_imgs = list(replicated_data[:,0])
-
+print(len(replicated_imgs))
 images_aug = seq.augment_images( replicated_imgs )  # done by the library
 for i in range(len(images_aug)):
     im = Image.fromarray(images_aug[i])
