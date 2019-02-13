@@ -10,7 +10,7 @@ from sklearn.preprocessing import StandardScaler
 from operator import mul
 import copy
 import pandas as pd
-
+import model
 def my_acc( v1, v2 ):
   count = 0.
   n = len(v1)
@@ -20,9 +20,6 @@ def my_acc( v1, v2 ):
   return count/(1.*n)
 
 imgs_folder = "../imgs/aug_imgs/"
-
-# class_map, inverse_class_map = classes.get_labels() 
-
 
 labels = np.loadtxt( "../imgs/aug_imgs/aug_labels.dat").astype(np.int32)
 n = len(labels)
@@ -54,9 +51,9 @@ labels = np.asarray(labels)
 img_train, img_test, class_train, class_test = sk.train_test_split(imgs,labels,test_size=0.1 )
 n_train = len(img_train)
 
-learning_rate = 0.0001
+learning_rate = 0.00001
 epochs = 100000
-batch_size = 12
+batch_size = 64
 
 print("### Setup ###")
 print("Number of inputs: ", n_data)
@@ -66,68 +63,38 @@ print("Batch size: ", batch_size )
 print(" Number epochs: ", epochs)
 print("Test size:", len(class_test))
 
-conv1_filters = 16
-conv2_filters = 32
-dense_size = 128  
-with tf.name_scope("Input"):
-    inp = tf.placeholder(tf.float32, [None, x_dim,y_dim,n_channels], name = "input")
+cnn = model.Model(im.shape, n_classes)
+cnn.basic_cnn()
+cnn.opt()
+init_op = tf.global_variables_initializer()
+local_op = tf.local_variables_initializer()
+# saver = tf.train.Saver()
 
-with tf.name_scope("Output"):
-    out = tf.placeholder(tf.int32, [None], name = "output")
+config = tf.ConfigProto( allow_soft_placement = True)
 
+with tf.Session(config=config) as sess:
+    sess.run(init_op)
+    sess.run(local_op)
 
-with tf.name_scope("layers"):
-    # Convolutional Layer #1
-    conv1 = tf.layers.conv2d(
-      inputs=inp,
-      filters=conv1_filters,
-      data_format = 'channels_last',
-      kernel_size=[5, 5],
-      padding="same",
-      activation=tf.nn.relu)
+    batch_pos = random.sample(range(0,n_train), batch_size)
+    batch_x = img_train[batch_pos]
+    batch_y = class_train[batch_pos]
+    print sess.run(cnn.logits,feed_dict={cnn.inp: batch_x, cnn.out: batch_y})
 
-    # Pooling Layer #1
-    pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[2, 2], strides=2)
+    c = sess.run([ cnn.optimiser], feed_dict={cnn.inp: batch_x, cnn.out: batch_y})
+    print sess.run(cnn.logits,feed_dict={cnn.inp: batch_x, cnn.out: batch_y})
 
-    # Convolutional Layer #2 and Pooling Layer #2
-    conv2 = tf.layers.conv2d(
-      inputs=pool1,
-      filters=conv2_filters,
-      kernel_size=[5, 5],
-      padding="same",
-      data_format = 'channels_last',
-      activation=tf.nn.relu)
-    pool2 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
-    pool2_flat =tf.reshape(pool2, [-1, int(x_dim/4) * int(y_dim/4) * conv2_filters])
-    dense = tf.layers.dense(inputs=pool2_flat, units=dense_size, activation=tf.nn.relu)
-    dropout = tf.layers.dropout(
-      inputs=dense, rate=0.7 )
-    logits = tf.layers.dense(inputs=dropout, units = n_classes)
+exit(0)
+# model.basic_cnn(x_dim, y_dim, n_channels, n_classes)
 
+# with tf.name_scope("Cost"):
+#     cost = tf.losses.sparse_softmax_cross_entropy(labels=out, logits=logits)
 
-# with tf.name_scope("Accuracy"):
-      # acc, acc_op = tf.metrics.accuracy(labels=t1, predictions=t2)
-
-with tf.name_scope("Cost"):
-    cost = tf.losses.sparse_softmax_cross_entropy(labels=out, logits=logits)
-
-with tf.name_scope("Train"):
-    optimiser = tf.train.AdamOptimizer( learning_rate ).minimize(cost)
-
-# print inp
-# print out
-# print conv1
-# print pool1
-# print conv2
-# print pool2
-# print pool2_flat
-# print dense
-# print logits
-# exit(0)
+# with tf.name_scope("Train"):
+#     optimiser = tf.train.AdamOptimizer( learning_rate ).minimize(cost)
 print("######################################")
 init_op = tf.global_variables_initializer()
 local_op = tf.local_variables_initializer()
-# other_op = tf.contrib.layers.xavier_initializer()
 saver = tf.train.Saver()
 
 config = tf.ConfigProto( allow_soft_placement = True)
@@ -135,11 +102,7 @@ config = tf.ConfigProto( allow_soft_placement = True)
 with tf.Session(config=config) as sess:
     sess.run(init_op)
     sess.run(local_op)
-    # sess.run(other_op)
-    # summaryMerged = tf.summary.merge_all()
-    # filename = "tensorboards/"
-    # writer = tf.summary.FileWriter(filename, sess.graph) 
-
+ 
     for epoch in range(epochs):
             batch_pos = random.sample(range(0,n_train), batch_size)
 
@@ -148,22 +111,20 @@ with tf.Session(config=config) as sess:
                 batch_y = class_train[batch_pos]
             
 
-            _, c = sess.run([optimiser, cost], feed_dict={inp: batch_x, out: batch_y})
+            _, c = sess.run([optimiser, cost], feed_dict={inp: batch_x, out: batch_y, drop_rate: 0.4})
 
             
 
             if(epoch%100 == 0):
-              batch_train_predict =  np.argmax(sess.run(logits, feed_dict={inp: batch_x}), axis = 1)
-              # train_predict =  np.argmax(sess.run(logits, feed_dict={inp: img_train}), axis = 1)
-              test_predict =  np.argmax(sess.run(logits, feed_dict={inp: img_test}), axis = 1)
+              batch_train_predict =  np.argmax(sess.run(logits, feed_dict={inp: batch_x, drop_rate: 0 }), axis = 1)
+              test_predict =  np.argmax(sess.run(logits, feed_dict={inp: img_test, drop_rate: 0}), axis = 1)
             
               batch_train_acc = my_acc(batch_train_predict,batch_y)
-              # train_acc = my_acc(train_predict,class_train)
               test_acc = my_acc(test_predict,class_test)
-              # print(epoch, c, round(train_acc,2), round(test_acc,2) )
+
               print(epoch,c, round(batch_train_acc, 2) , round(test_acc,2))
-              if(batch_train_acc > 0.999):
-                print("Train acc > 0.999")
+             # if(batch_train_acc > 0.999):
+                #print("Train acc > 0.999")
                 # break
       
     # train_predict =  sess.run(logits, feed_dict={inp: img_train, out: class_train})
