@@ -44,8 +44,8 @@ imgs = []
 for i in range(n_data):
     im = np.asarray(Image.open( imgs_folder +str(i) + '.png' ))
     imgs.append(im)
-    # img_mean = int(np.mean(im.flatten()))
-    # im = im - img_mean
+    img_mean = int(np.mean(im.flatten()))
+    im = im - img_mean
 
 print("Done.")
 x_dim, y_dim, n_channels = im.shape
@@ -54,9 +54,9 @@ labels = np.asarray(labels)
 img_train, img_test, class_train, class_test = sk.train_test_split(imgs,labels,test_size=0.1 )
 n_train = len(img_train)
 
-learning_rate = 0.001
+learning_rate = 0.0001
 epochs = 100000
-batch_size = 32
+batch_size = 12
 
 print("### Setup ###")
 print("Number of inputs: ", n_data)
@@ -68,7 +68,7 @@ print("Test size:", len(class_test))
 
 conv1_filters = 16
 conv2_filters = 32
-dense_size = 65  
+dense_size = 128  
 with tf.name_scope("Input"):
     inp = tf.placeholder(tf.float32, [None, x_dim,y_dim,n_channels], name = "input")
 
@@ -164,7 +164,7 @@ with tf.Session(config=config) as sess:
               print(epoch,c, round(batch_train_acc, 2) , round(test_acc,2))
               if(batch_train_acc > 0.999):
                 print("Train acc > 0.999")
-                break
+                # break
       
     # train_predict =  sess.run(logits, feed_dict={inp: img_train, out: class_train})
     # test_predict =  sess.run(logits, feed_dict={inp: img_test, out: class_test})

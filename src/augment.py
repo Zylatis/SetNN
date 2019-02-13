@@ -111,13 +111,13 @@ print("Actual number of classes represented in data: " + str(n_seen) )
 # for k,v in class_map.items():
     # print k,v
 
-n_replicates = 3
+n_replicates = 300
 n_raw = len(labeled_data)
 rand_list = [random.randrange( n_raw ) for i in range( n_raw * n_replicates )]
 replicated_data = np.asarray([ labeled_data[i] for i in rand_list])
 
 labels = replicated_data[:,1]
-labels = map(restricted_map.get,labels)
+labels = list(map(restricted_map.get,labels))
 print("Saving labels")
 np.savetxt("../imgs/aug_imgs/aug_labels.dat", labels, fmt = "%d")
 
