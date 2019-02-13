@@ -6,7 +6,6 @@ from PIL import Image # gives better output control than matplotlib
 import random
 import classes
 
-
 # Sometimes(0.5, ...) applies the given augmenter in 50% of all cases,
 # e.g. Sometimes(0.5, GaussianBlur(0.3)) would blur roughly every second image.
 sometimes = lambda aug: iaa.Sometimes(0.5, aug)
@@ -82,9 +81,7 @@ seq = iaa.Sequential(
     random_order=True
 )
 
-
 imgs_folder = "../imgs/"
-
 labeled_data = []
 class_map, inverse_class_map = classes.get_labels()
 classes_seen = []
@@ -98,16 +95,40 @@ for i in os.listdir( imgs_folder + "processed/"):
         im = np.asarray(Image.open( imgs_folder + "processed/"+str(i) )).astype(np.uint8)
         labeled_data.append([im, class_val])
 
-n_replicates = 100
+if len(labeled_data) == 0:
+    print("Run resize.py first, dumbarse.")
+
+class_seen = classes_seen.sort()
+classes_seen = list(set(classes_seen))
+n_seen = len(classes_seen)
+restricted_map = {}
+
+for i in range(n_seen):
+    restricted_map[classes_seen[i]] = i
+
+print("Actual number of classes represented in data: " + str(n_seen) )
+
+# for k,v in class_map.items():
+    # print k,v
+
+n_replicates = 3
 n_raw = len(labeled_data)
 rand_list = [random.randrange( n_raw ) for i in range( n_raw * n_replicates )]
-
 replicated_data = np.asarray([ labeled_data[i] for i in rand_list])
+
 labels = replicated_data[:,1]
-np.savetxt("../imgs/aug_labels.dat", labels, fmt = "%d")
+labels = map(restricted_map.get,labels)
+print("Saving labels")
+np.savetxt("../imgs/aug_imgs/aug_labels.dat", labels, fmt = "%d")
+
+print("Applying transformations")
 replicated_imgs = list(replicated_data[:,0])
-print(len(replicated_imgs))
+
+print("Number of images produced: " + str(len(replicated_imgs)))
 images_aug = seq.augment_images( replicated_imgs )  # done by the library
 for i in range(len(images_aug)):
     im = Image.fromarray(images_aug[i])
     im.save( imgs_folder + "aug_imgs/" + str(i) +".png")
+
+print("Done")
+print(len(set(labels)))

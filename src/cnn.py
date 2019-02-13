@@ -21,15 +21,16 @@ def my_acc( v1, v2 ):
 
 imgs_folder = "../imgs/aug_imgs/"
 
-class_map, inverse_class_map = classes.get_labels()
+# class_map, inverse_class_map = classes.get_labels() 
 
 
-labels = np.loadtxt( "../imgs/aug_labels.dat").astype(np.int32)
+labels = np.loadtxt( "../imgs/aug_imgs/aug_labels.dat").astype(np.int32)
 n = len(labels)
+# n = 60
+print("Loading " + str(n) + " images:")
 labels = labels[:n]
-
 n_data = len(labels)
-n_classes = len(class_map)
+n_classes = max(labels)+1# very hacky 
 
 empty = np.zeros(n_classes)
 label_vectors = []
@@ -37,17 +38,17 @@ for label in labels:
     temp  = copy.deepcopy( empty )
     temp[label] = 1.
     label_vectors.append(temp)
-
 label_vectors = np.array(label_vectors)
+
 imgs = []
-
-
 for i in range(n_data):
     im = np.asarray(Image.open( imgs_folder +str(i) + '.png' ))
     imgs.append(im)
+    # img_mean = int(np.mean(im.flatten()))
+    # im = im - img_mean
 
+print("Done.")
 x_dim, y_dim, n_channels = im.shape
-
 imgs = np.asarray(imgs)
 labels = np.asarray(labels)
 img_train, img_test, class_train, class_test = sk.train_test_split(imgs,labels,test_size=0.1 )
@@ -55,7 +56,6 @@ n_train = len(img_train)
 
 learning_rate = 0.001
 epochs = 100000
-
 batch_size = 32
 
 print("### Setup ###")
@@ -101,7 +101,7 @@ with tf.name_scope("layers"):
     pool2_flat =tf.reshape(pool2, [-1, int(x_dim/4) * int(y_dim/4) * conv2_filters])
     dense = tf.layers.dense(inputs=pool2_flat, units=dense_size, activation=tf.nn.relu)
     dropout = tf.layers.dropout(
-      inputs=dense, rate=0.4 )
+      inputs=dense, rate=0.7 )
     logits = tf.layers.dense(inputs=dropout, units = n_classes)
 
 
@@ -165,7 +165,7 @@ with tf.Session(config=config) as sess:
               if(batch_train_acc > 0.999):
                 print("Train acc > 0.999")
                 break
-
+      
     # train_predict =  sess.run(logits, feed_dict={inp: img_train, out: class_train})
     # test_predict =  sess.run(logits, feed_dict={inp: img_test, out: class_test})
 
