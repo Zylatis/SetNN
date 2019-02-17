@@ -11,18 +11,34 @@ from operator import mul
 import copy
 import pandas as pd
 import fns
+
 class CNN:
-	def __init__(self, im_shape, n_classes):
+	def __init__(self, im_shape, n_classes, hyperpars):
 		self.x_dim, self.y_dim, self.n_channels = im_shape
 		self.n_classes = n_classes
-		
+		self.hyperpars = hyperpars
+		print("Setup model:"),
+
+		# atm the hyperpars and kwargs are diff to allow feed_dict to do stuff
+		for k,v in hyperpars.items():
+			try:
+				assert k not in self.__dict__
+			except AssertionError as e:
+				print("\nWarning: overriding variable '" + k + "' in model definition")
+
+			try:
+				setattr(self, k, v) # could use self.__dict__.update but ill advised apparently
+			except Exception as e:
+				print("\nCouldn't set " + k + " to value " + str(v) + " in model definition")
+		print("Done")
+
 	def build_layers(self):
 		conv1_filters = 16
 		conv2_filters = 32
 		dense_size = 1024  
 	 
 		self.inp = tf.placeholder(tf.float32, [None, self.x_dim,self.y_dim,self.n_channels], name = "input")
-		self.drop_rate = tf.placeholder(tf.float32)
+		# self.drop_rate = tf.placeholder(tf.float32)
 
 
 		self.out = tf.placeholder(tf.int32, [None], name = "output")
@@ -60,33 +76,33 @@ class CNN:
 		self.optimiser = tf.train.AdamOptimizer( learning_rate ).minimize(self.cost)
 
 
-# def fit_model( model, **kwargs ):
+# Pretty shit atm, massive clusterfuck of hyperparameter usage (some inside model, some inside fitting here)
+# Needs to be wrapped in larger class, and to understand how to feed in kwargs dict to feed_dict (i.e. with strings)
+def fit_model( model, data, **kwargs ):
+	train_inp, train_out, test_inp, test_out = data
+	init_op = tf.global_variables_initializer()
+	local_op = tf.local_variables_initializer()
+	config = tf.ConfigProto( allow_soft_placement = True)
 
-# 	init_op = tf.global_variables_initializer()
-# 	local_op = tf.local_variables_initializer()
-# 	config = tf.ConfigProto( allow_soft_placement = True)
+	with tf.Session(config=config) as sess:
+	    sess.run(init_op)
+	    sess.run(local_op)
 
-# 	with tf.Session(config=config) as sess:
-# 	    sess.run(init_op)
-# 	    sess.run(local_op)
+	    for epoch in range(model.hyperpars['epochs']):
+	            batch_pos = random.sample(range(0,len(train_inp)), model.hyperpars['batch_size'])
 
-# 	    for epoch in range(epochs):
-# 	            batch_pos = random.sample(range(0,n_train), batch_size)
-
-# 	            with tf.name_scope("Batch_selection"):
-# 	                batch_x = img_train[batch_pos]
-# 	                batch_y = class_train[batch_pos]
+	            with tf.name_scope("Batch_selection"):
+	                batch_x = train_inp[batch_pos]
+	                batch_y = train_out[batch_pos]
 	            
-# 	            _, c = sess.run([model.optimiser, model.cost], feed_dict={model.inp: batch_x, model.out: batch_y, model.drop_rate: 0.4})
+	            _, c = sess.run([model.optimiser, model.cost], feed_dict={model.inp: batch_x, model.out: batch_y})
 
-	            
+	            if(epoch%1 == 0):
+	              batch_train_predict =  np.argmax(sess.run(model.logits, feed_dict={model.inp: batch_x }), axis = 1)
+	              test_predict =  np.argmax(sess.run(model.logits, feed_dict={model.inp: test_inp}), axis = 1)
+	            # 
+	              batch_train_acc = fns.my_acc(batch_train_predict,batch_y)
+	              test_acc = fns.my_acc(test_predict,test_out)
 
-# 	            if(epoch%100 == 0):
-# 	              batch_train_predict =  np.argmax(sess.run(model.logits, feed_dict={model.inp: batch_x, model.drop_rate: 0 }), axis = 1)
-# 	              test_predict =  np.argmax(sess.run(model.logits, feed_dict={model.inp: img_test, model.drop_rate: 0}), axis = 1)
-	            
-# 	              batch_train_acc = my_acc(batch_train_predict,batch_y)
-# 	              test_acc = my_acc(test_predict,class_test)
-
-# 	              print(epoch,c, round(batch_train_acc, 2) , round(test_acc,2))
+	              print(epoch,c, round(batch_train_acc, 2) , round(test_acc,2))
 	 

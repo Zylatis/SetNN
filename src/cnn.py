@@ -45,60 +45,37 @@ x_dim, y_dim, n_channels = im.shape
 imgs = np.asarray(imgs)
 labels = np.asarray(labels)
 img_train, img_test, class_train, class_test = sk.train_test_split(imgs,labels,test_size=0.1 )
-n_train = len(img_train)
 
-learning_rate = 0.00001
-epochs = 100000
-batch_size = 64
+hyperpars = {
+'drop_rate':0.4,
+'batch_size' : 64,
+'learning_rate' : 0.00001,
+'epochs' : 100000
+}
 
-print("Number of inputs: ", n_data)
-print("Number of classes: ", n_classes)
-print("X: ", x_dim, ", Y: ", y_dim)
-print("Batch size: ", batch_size )
-print(" Number epochs: ", epochs)
-print("Test size:", len(class_test))
-
-cnn = model.CNN(im.shape, n_classes)
+cnn = model.CNN(im.shape, n_classes, hyperpars)
 cnn.build_layers()
 cnn.opt()
-init_op = tf.global_variables_initializer()
-local_op = tf.local_variables_initializer()
-config = tf.ConfigProto( allow_soft_placement = True)
 
-with tf.Session(config=config) as sess:
-    sess.run(init_op)
-    sess.run(local_op)
+model.fit_model(cnn, [img_train,class_train, img_test, class_test])
 
-    for epoch in range(epochs):
-            batch_pos = random.sample(range(0,n_train), batch_size)
-
-            with tf.name_scope("Batch_selection"):
-                batch_x = img_train[batch_pos]
-                batch_y = class_train[batch_pos]
-            
-            _, c = sess.run([cnn.optimiser, cnn.cost], feed_dict={cnn.inp: batch_x, cnn.out: batch_y, cnn.drop_rate: 0.4})
-
-            
-
-            if(epoch%100 == 0):
-              batch_train_predict =  np.argmax(sess.run(cnn.logits, feed_dict={cnn.inp: batch_x, cnn.drop_rate: 0 }), axis = 1)
-              test_predict =  np.argmax(sess.run(cnn.logits, feed_dict={cnn.inp: img_test, cnn.drop_rate: 0}), axis = 1)
-            
-              batch_train_acc = fns.my_acc(batch_train_predict,batch_y)
-              test_acc = fns.my_acc(test_predict,class_test)
-
-              print(epoch,c, round(batch_train_acc, 2) , round(test_acc,2))
- 
-
+# TESTS
 def test_change():
-  test_cnn = model.Model(im.shape, n_classes)
-  test_cnn.basic_cnn()
+  hyperpars = {
+  'drop_rate':0.4,
+  'batch_size' : 64,
+  'learning_rate' : 0.00001,
+  'epochs' : 100000
+  }
+
+  test_cnn = model.CNN(im.shape, n_classes, hyperpars)
+  test_cnn.build_layers()
   test_cnn.opt()
 
   config = tf.ConfigProto( allow_soft_placement = True)
   init_op = tf.global_variables_initializer()
   local_op = tf.local_variables_initializer()
-  batch_pos = random.sample(range(0,n_train), batch_size)
+  batch_pos = random.sample(range(0,len(img_train)), hyperpars['batch_size'])
   batch_x = img_train[batch_pos]
   batch_y = class_train[batch_pos]
   
@@ -106,10 +83,12 @@ def test_change():
     sess.run(init_op)
     sess.run(local_op)
 
-    init_vals = sess.run(cnn.logits,feed_dict={cnn.inp: batch_x, cnn.out: batch_y})
+    init_vals = sess.run(test_cnn.logits,feed_dict={test_cnn.inp: batch_x, test_cnn.out: batch_y})
 
-    sess.run([ cnn.optimiser], feed_dict={cnn.inp: batch_x, cnn.out: batch_y})
-    single_step_vals =  sess.run(cnn.logits,feed_dict={cnn.inp: batch_x, cnn.out: batch_y})
+    sess.run([ test_cnn.optimiser], feed_dict={test_cnn.inp: batch_x, test_cnn.out: batch_y})
+    single_step_vals =  sess.run(test_cnn.logits,feed_dict={test_cnn.inp: batch_x, test_cnn.out: batch_y})
 
-    assert (0 in single_step_vals - single_step_vals)
-    assert (0 not in single_step_vals - init_vals)
+    diff = single_step_vals - init_vals
+
+    assert (np.all(single_step_vals - single_step_vals==0))
+    assert (0 not in diff)
