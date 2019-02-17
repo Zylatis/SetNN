@@ -53,10 +53,10 @@ hyperpars = {
 'epochs' : 100000
 }
 
-cnn = model.CNN(im.shape, n_classes, hyperpars)
+cnn = model.CNN(im.shape, n_classes, hyperpars, name = "CNN1")
 cnn.build_layers()
 cnn.opt()
-
+# 
 model.fit_model(cnn, [img_train,class_train, img_test, class_test])
 
 # TESTS

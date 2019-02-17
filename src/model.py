@@ -13,34 +13,37 @@ import pandas as pd
 import fns
 
 class CNN:
-	def __init__(self, im_shape, n_classes, hyperpars):
+	def __init__(self, im_shape, n_classes, hyperpars, **kwargs):
 		self.x_dim, self.y_dim, self.n_channels = im_shape
 		self.n_classes = n_classes
 		self.hyperpars = hyperpars
 		print("Setup model:"),
 
+		# Merge kwargs and hyperpars into a temporary dict to make object variables
+		# (this may not be ideal down the line, though nothing is truly private in python anyway soooo...)
+		local_defs = copy.deepcopy(hyperpars)
+		local_defs.update(kwargs)
+
 		# atm the hyperpars and kwargs are diff to allow feed_dict to do stuff
-		for k,v in hyperpars.items():
+		for k,v in local_defs.items():
 			try:
 				assert k not in self.__dict__
 			except AssertionError as e:
-				print("\nWarning: overriding variable '" + k + "' in model definition")
+				print("\nWARNING: overriding variable '" + k + "' in model definition")
 
 			try:
 				setattr(self, k, v) # could use self.__dict__.update but ill advised apparently
 			except Exception as e:
 				print("\nCouldn't set " + k + " to value " + str(v) + " in model definition")
 		print("Done")
-
+	
 	def build_layers(self):
 		conv1_filters = 16
 		conv2_filters = 32
 		dense_size = 1024  
-	 
+
+		# Placeholders for input/output (fed from feed_dict)	 
 		self.inp = tf.placeholder(tf.float32, [None, self.x_dim,self.y_dim,self.n_channels], name = "input")
-		# self.drop_rate = tf.placeholder(tf.float32)
-
-
 		self.out = tf.placeholder(tf.int32, [None], name = "output")
 
 		# Convolutional Layer #1
@@ -70,6 +73,7 @@ class CNN:
 			inputs=dense, rate=self.drop_rate )
 		self.logits = tf.layers.dense(inputs=dropout, units = self.n_classes)
 
+	# Define opt functions
 	def opt(self):
 		learning_rate = 0.01
 		self.cost = tf.losses.sparse_softmax_cross_entropy(labels=self.out, logits=self.logits)
@@ -84,12 +88,23 @@ def fit_model( model, data, **kwargs ):
 	local_op = tf.local_variables_initializer()
 	config = tf.ConfigProto( allow_soft_placement = True)
 
+
+	# Below is a specific,ish, model fitting routine so we need to check that the model comes with appropriate hyperparameters to use it
+	# We make local copies so we don't overwrite what is in the model already
+	try:
+		batch_size = model.batch_size
+		epochs = model.epochs
+	except:
+		print("\nWARNING: Model " + model.name + " lacks appropriate hyper parameters, resorting test-case defaults\n")
+		batch_size = int(round(0.05*len(train_inp)))
+		epochs = 1000
+
 	with tf.Session(config=config) as sess:
 	    sess.run(init_op)
 	    sess.run(local_op)
 
-	    for epoch in range(model.hyperpars['epochs']):
-	            batch_pos = random.sample(range(0,len(train_inp)), model.hyperpars['batch_size'])
+	    for epoch in range(epochs):
+	            batch_pos = random.sample(range(0,len(train_inp)), batch_size)
 
 	            with tf.name_scope("Batch_selection"):
 	                batch_x = train_inp[batch_pos]
