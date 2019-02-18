@@ -19,8 +19,8 @@ imgs_folder = "../imgs/aug_imgs/"
 
 labels = np.loadtxt( "../imgs/aug_imgs/aug_labels.dat").astype(np.int32)
 n = len(labels)
-# n = 60
-print("Loading " + str(n) + " images:")
+#n =1500
+print("Loading " + str(n) + " images: "),
 labels = labels[:n]
 n_data = len(labels)
 n_classes = max(labels)+1# very hacky 
@@ -41,6 +41,7 @@ for i in range(n_data):
     im = im - img_mean
 
 print("Done.")
+print("Number of classes: " + str(n_classes) )
 x_dim, y_dim, n_channels = im.shape
 imgs = np.asarray(imgs)
 labels = np.asarray(labels)
@@ -48,7 +49,7 @@ img_train, img_test, class_train, class_test = sk.train_test_split(imgs,labels,t
 
 hyperpars = {
 'drop_rate':0.4,
-'batch_size' : 64,
+'batch_size' : 32,
 'learning_rate' : 0.00001,
 'epochs' : 100000
 }
@@ -59,12 +60,13 @@ cnn.opt()
 # 
 model.fit_model(cnn, [img_train,class_train, img_test, class_test])
 
-# TESTS
+############## TESTS ##############
 def test_change():
+  # hyperpars don't matter here
   hyperpars = {
   'drop_rate':0.4,
   'batch_size' : 64,
-  'learning_rate' : 0.00001,
+  'learning_rate' : 0.1,
   'epochs' : 100000
   }
 

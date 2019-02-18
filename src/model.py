@@ -17,7 +17,7 @@ class CNN:
 		self.x_dim, self.y_dim, self.n_channels = im_shape
 		self.n_classes = n_classes
 		self.hyperpars = hyperpars
-		print("Setup model:"),
+		print("Setup model: "),
 
 		# Merge kwargs and hyperpars into a temporary dict to make object variables
 		# (this may not be ideal down the line, though nothing is truly private in python anyway soooo...)
@@ -40,8 +40,8 @@ class CNN:
 	def build_layers(self):
 		conv1_filters = 16
 		conv2_filters = 32
-		dense_size = 1024  
-
+		dense_size = 128  
+		reg = 0.01
 		# Placeholders for input/output (fed from feed_dict)	 
 		self.inp = tf.placeholder(tf.float32, [None, self.x_dim,self.y_dim,self.n_channels], name = "input")
 		self.out = tf.placeholder(tf.int32, [None], name = "output")
@@ -53,31 +53,34 @@ class CNN:
 			data_format = 'channels_last',
 			kernel_size=[5, 5],
 			padding="same",
-			activation=tf.nn.relu)
+			activation=tf.nn.relu,
+			kernel_regularizer=tf.contrib.layers.l2_regularizer(reg )
+			)
 
 		# Pooling Layer #1
 		pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[2, 2], strides=2)
-
+		pool1_dropout = tf.layers.dropout( inputs=pool1 , rate=self.drop_rate )
 		# Convolutional Layer #2 and Pooling Layer #2
 		conv2 = tf.layers.conv2d(
-			inputs=pool1,
+			inputs=pool1_dropout ,
 			filters=conv2_filters,
 			kernel_size=[5, 5],
 			padding="same",
 			data_format = 'channels_last',
-			activation=tf.nn.relu)
+			activation=tf.nn.relu,
+			kernel_regularizer=tf.contrib.layers.l2_regularizer(reg )
+			)
 		pool2 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
 		pool2_flat =tf.reshape(pool2, [-1, int(self.x_dim/4) * int(self.y_dim/4) * conv2_filters])
-		dense = tf.layers.dense(inputs=pool2_flat, units=dense_size, activation=tf.nn.relu)
-		dropout = tf.layers.dropout(
-			inputs=dense, rate=self.drop_rate )
-		self.logits = tf.layers.dense(inputs=dropout, units = self.n_classes)
+		dense = tf.layers.dense(inputs=pool2_flat, units=dense_size, activation=tf.nn.relu, kernel_regularizer=tf.contrib.layers.l2_regularizer(reg )
+		)
+		dense_dropout = tf.layers.dropout( inputs=dense, rate=self.drop_rate )
+		self.logits = tf.layers.dense(inputs=dense_dropout , units = self.n_classes)
 
 	# Define opt functions
 	def opt(self):
-		learning_rate = 0.01
-		self.cost = tf.losses.sparse_softmax_cross_entropy(labels=self.out, logits=self.logits)
-		self.optimiser = tf.train.AdamOptimizer( learning_rate ).minimize(self.cost)
+		self.cost = tf.losses.sparse_softmax_cross_entropy(labels=self.out, logits=self.logits) + tf.losses.get_regularization_loss()
+		self.optimiser = tf.train.AdamOptimizer( self.learning_rate ).minimize(self.cost)
 
 
 # Pretty shit atm, massive clusterfuck of hyperparameter usage (some inside model, some inside fitting here)
@@ -109,10 +112,11 @@ def fit_model( model, data, **kwargs ):
 	            with tf.name_scope("Batch_selection"):
 	                batch_x = train_inp[batch_pos]
 	                batch_y = train_out[batch_pos]
-	            
 	            _, c = sess.run([model.optimiser, model.cost], feed_dict={model.inp: batch_x, model.out: batch_y})
 
-	            if(epoch%1 == 0):
+	            if(epoch%100 == 0):
+	              dropout_save = model.drop_rate	
+	              model.drop_rate = 0. # for accuracy tests
 	              batch_train_predict =  np.argmax(sess.run(model.logits, feed_dict={model.inp: batch_x }), axis = 1)
 	              test_predict =  np.argmax(sess.run(model.logits, feed_dict={model.inp: test_inp}), axis = 1)
 	            # 
@@ -120,4 +124,5 @@ def fit_model( model, data, **kwargs ):
 	              test_acc = fns.my_acc(test_predict,test_out)
 
 	              print(epoch,c, round(batch_train_acc, 2) , round(test_acc,2))
+	              model.drop_rate = dropout_save
 	 

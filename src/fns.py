@@ -1,4 +1,3 @@
-
 def my_acc( v1, v2 ):
   count = 0.
   n = len(v1)
