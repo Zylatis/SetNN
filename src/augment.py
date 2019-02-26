@@ -11,16 +11,17 @@ import sys
 sometimes = lambda aug: iaa.Sometimes(0.5, aug)
 
 imgs_folder = "../imgs/"
-class_map, inverse_class_map = classes.get_labels()
+class_map, class_vec_map = classes.get_labels()
 
 def yield_files():
 	for i in os.listdir( imgs_folder + "processed/"):
 		if i.endswith('.png'):
 			label =  ("_").join(  (i[:-4]).split('_')[2:6] ).strip()
 			class_val = class_map[label]
+			class_vec_val = class_vec_map[label]
 			# classes_seen.append(class_val)
 			im = np.asarray(Image.open( imgs_folder + "processed/"+str(i) )).astype(np.uint8)
-			yield [im, class_val]
+			yield [im, class_val, class_vec_val]
 
 # Define our sequence of augmentation steps that will be applied to every image
 # All augmenters with per_channel=0.5 will sample one value _per image_
@@ -100,17 +101,19 @@ if n_raw == 0:
 	print("Run resize.py first, dumbarse.")
 	exit(0)
 
-n_replicates = 200
+n_replicates = 1000
 count = 0
 img_generator = yield_files()
 all_labels = np.asarray([])
+all_vec_labels = np.empty(shape=(1,4))
 total = n_raw*n_replicates
 
-max_classes = 2
+
+max_classes = 25
 seenc = []
 sc = 0
 print("Augmenting images and saving")
-for img, label in img_generator:
+for img, label, vec_label in img_generator:
 	if len(seenc) >= max_classes:
 		break
 	if label in seenc:
@@ -122,15 +125,18 @@ for img, label in img_generator:
 	replicated_data = np.asarray([ img for i in range(n_replicates)])
 	images_aug = seq.augment_images( replicated_data )
 	all_labels = np.concatenate( (all_labels, [label]*n_replicates))
+
+	all_vec_labels = np.concatenate( (all_vec_labels, [vec_label]*n_replicates))
+
 	for i in range(n_replicates):
 		im = Image.fromarray(images_aug[i])
 		im.save( imgs_folder + "aug_imgs/" + str( count) +".png")
 		count += 1
 	perc = int(round(100.*count/(1.*total)))
-	print  "\rProgress: " +str(perc) + "%",
+	print("\rProgress: " +str(perc) + "%"),
 
+all_vec_labels =  np.delete(all_vec_labels,(0),axis = 0)
 
-# print all_labels
 classes_seen = sorted(all_labels)
 classes_seen = list(set(classes_seen))
 n_seen = len(classes_seen)
@@ -140,7 +146,8 @@ for i in range(n_seen):
 	restricted_map[int(classes_seen[i])] = i
 
 print("\nActual number of classes represented in data: " + str(n_seen) )
-all_labels = map(restricted_map.get,all_labels)
+all_labels = list(map(restricted_map.get,all_labels))
 
 print("Saving labels")
 np.savetxt("../imgs/aug_imgs/aug_labels.dat", all_labels, fmt = "%d")
+np.savetxt("../imgs/aug_imgs/aug_vec_labels.dat", all_vec_labels, fmt = "%d")

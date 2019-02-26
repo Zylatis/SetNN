@@ -13,18 +13,20 @@ import pandas as pd
 import models
 import fns
 
+model = ""
+
 print("### Setup ###")
 
 imgs_folder = "../imgs/aug_imgs/"
-
-labels = np.loadtxt( "../imgs/aug_imgs/aug_labels.dat").astype(np.int32)
+labels = np.loadtxt( "../imgs/aug_imgs/aug_"+model+"labels.dat").astype(np.int32)
 n = len(labels)
 #n =1500
 print("Loading " + str(n) + " images: "),
 labels = labels[:n]
 n_data = len(labels)
 n_classes = max(labels)+1# very hacky 
-
+# n_classes = 4
+print n_data
 empty = np.zeros(n_classes)
 label_vectors = []
 for label in labels:
@@ -49,16 +51,21 @@ img_train, img_test, class_train, class_test = sk.train_test_split(imgs,labels,t
 
 hyperpars = {
 'drop_rate':0.4,
-'batch_size' : 32,
+'batch_size' : 10,
 'learning_rate' : 0.00001,
 'epochs' : 100000
 }
 
-cnn = models.CNN(im.shape, n_classes, hyperpars, name = "CNN1")
-cnn.build_layers()
-cnn.opt()
-models.fit_model(cnn, [img_train,class_train, img_test, class_test])
-
+if model == "":
+  cnn = models.CNN(im.shape, n_classes, hyperpars, name = "CNN1")
+  cnn.build_layers()
+  cnn.opt()
+  models.fit_model(cnn, [img_train,class_train, img_test, class_test])
+else:
+  cnn = models.CNN(im.shape, 4, hyperpars, name = "CNN2")
+  cnn.build_layers()
+  cnn.opt()
+  models.fit_model(cnn, [img_train,class_train, img_test, class_test])
 ############## TESTS ##############
 # def test_change():
 #   # hyperpars don't matter here
