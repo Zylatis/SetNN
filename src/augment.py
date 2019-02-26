@@ -100,21 +100,31 @@ if n_raw == 0:
 	print("Run resize.py first, dumbarse.")
 	exit(0)
 
-n_replicates = 3
+n_replicates = 200
 count = 0
 img_generator = yield_files()
 all_labels = np.asarray([])
 total = n_raw*n_replicates
+
+max_classes = 2
+seenc = []
+sc = 0
 print("Augmenting images and saving")
 for img, label in img_generator:
-	
+	if len(seenc) >= max_classes:
+		break
+	if label in seenc:
+		sc += 1
+	else:
+		seenc.append(label)
+
 	sys.stdout.flush() 
 	replicated_data = np.asarray([ img for i in range(n_replicates)])
 	images_aug = seq.augment_images( replicated_data )
 	all_labels = np.concatenate( (all_labels, [label]*n_replicates))
 	for i in range(n_replicates):
 		im = Image.fromarray(images_aug[i])
-		# im.save( imgs_folder + "aug_imgs/" + str( count) +".png")
+		im.save( imgs_folder + "aug_imgs/" + str( count) +".png")
 		count += 1
 	perc = int(round(100.*count/(1.*total)))
 	print  "\rProgress: " +str(perc) + "%",
