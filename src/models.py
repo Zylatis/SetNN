@@ -40,7 +40,7 @@ class CNN:
 	def build_layers(self):
 		conv1_filters = 16
 		conv2_filters = 32
-		dense_size = 128  
+		dense_size = self.dense_size  
 		reg = 0.01
 		# Placeholders for input/output (fed from feed_dict)	 
 		self.inp = tf.placeholder(tf.float32, [None, self.x_dim,self.y_dim,self.n_channels], name = "input")
@@ -77,13 +77,16 @@ class CNN:
 		dense = tf.layers.dense(inputs=pool2_flat, units=dense_size, activation=tf.nn.relu, kernel_regularizer=tf.contrib.layers.l1_regularizer(reg )
 		)
 		dense_dropout = tf.layers.dropout( inputs=dense, rate=self.drop_rate )
-		self.logits = tf.layers.dense(inputs=dense_dropout, units = self.n_classes)
+		self.logits = tf.layers.dense(inputs=dense_dropout, units = self.n_classes,activation=tf.nn.relu)
+		
 
 	# Define opt functions
 	def opt(self):
 		# print self.out.shape
 		# print self.logits.shape
 		self.cost = tf.losses.sparse_softmax_cross_entropy(labels=self.out, logits=self.logits) + tf.losses.get_regularization_loss()
+		
+
 		# self.cost = tf.losses.mean_squared_error(labels=self.out, predictions=self.logits) + tf.losses.get_regularization_loss()
 		# update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 		# with tf.control_dependencies(update_ops):
@@ -92,11 +95,17 @@ class CNN:
 # Pretty shit atm, massive clusterfuck of hyperparameter usage (some inside model, some inside fitting here)
 # Needs to be wrapped in larger class, and to understand how to feed in kwargs dict to feed_dict (i.e. with strings)
 def fit_model( model, data, **kwargs ):
+
+	# tf.summary.histogram("logits", model.logits)
+	tf.summary.scalar('cost', model.cost)
+	merged = tf.summary.merge_all()
 	train_inp, train_out, test_inp, test_out = data
 	init_op = tf.global_variables_initializer()
 	local_op = tf.local_variables_initializer()
 	config = tf.ConfigProto( allow_soft_placement = True)
 
+
+	
 
 	# Below is a specific,ish, model fitting routine so we need to check that the model comes with appropriate hyperparameters to use it
 	# We make local copies so we don't overwrite what is in the model already
@@ -107,28 +116,35 @@ def fit_model( model, data, **kwargs ):
 		print("\nWARNING: Model " + model.name + " lacks appropriate hyper parameters, resorting test-case defaults\n")
 		batch_size = int(round(0.05*len(train_inp)))
 		epochs = 1000
-
+	# saver = tf.train.Saver()
 	with tf.Session(config=config) as sess:
 		sess.run(init_op)
 		sess.run(local_op)
-
+		writer = tf.summary.FileWriter("../models/" + model.name, sess.graph)
 		for epoch in range(epochs):
 				batch_pos = random.sample(range(0,len(train_inp)), batch_size)
 
 				with tf.name_scope("Batch_selection"):
 					batch_x = train_inp[batch_pos]
 					batch_y = train_out[batch_pos]
-				_, c = sess.run([model.optimiser, model.cost], feed_dict={model.inp: batch_x, model.out: batch_y})
+				summary, _, c = sess.run([merged, model.optimiser, model.cost], feed_dict={model.inp: batch_x, model.out: batch_y})
 
 				if(epoch%100 == 0):
 				  dropout_save = model.drop_rate	
 				  model.drop_rate = 0. # for accuracy tests
 				  batch_train_predict =  np.argmax(sess.run(model.logits, feed_dict={model.inp: batch_x }), axis = 1)
+				  # batch_train_predict = sess.run(model.logits, feed_dict={model.inp: batch_x })
 				  test_predict =  np.argmax(sess.run(model.logits, feed_dict={model.inp: test_inp}), axis = 1)
-				# 
+				  # test_predict = sess.run(model.logits, feed_dict={model.inp: test_inp})
+				  
 				  batch_train_acc = fns.my_acc(batch_train_predict,batch_y)
 				  test_acc = fns.my_acc(test_predict,test_out)
+				  # batch_train_acc = fns.my_vec_acc(batch_train_predict,batch_y)
+				  # test_acc = fns.my_vec_acc(test_predict,test_out)
 
+				  writer.add_summary(summary, epoch)
 				  print(epoch,c, round(batch_train_acc, 2) , round(test_acc,2))
-				  model.drop_rate = dropout_save
+				  model.drop_rate = dropout_save	
+		save_path = saver.save(sess, "../models/" +  model.name +"/" + model.name + ".ckpt")
+
 	 

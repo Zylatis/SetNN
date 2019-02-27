@@ -13,27 +13,17 @@ import pandas as pd
 import models
 import fns
 
-model = ""
-
+# model = "vec_"
+model= ""
 print("### Setup ###")
 
 imgs_folder = "../imgs/aug_imgs/"
-labels = np.loadtxt( "../imgs/aug_imgs/aug_"+model+"labels.dat").astype(np.int32)
-n = len(labels)
-#n =1500
-print("Loading " + str(n) + " images: "),
-labels = labels[:n]
-n_data = len(labels)
-n_classes = max(labels)+1# very hacky 
-# n_classes = 4
-print n_data
-empty = np.zeros(n_classes)
-label_vectors = []
-for label in labels:
-    temp  = copy.deepcopy( empty )
-    temp[label] = 1.
-    label_vectors.append(temp)
-label_vectors = np.array(label_vectors)
+# labels = np.loadtxt( "../imgs/aug_imgs/aug_"+model+"labels.dat").astype(np.int32)
+vec_labels = np.asarray(np.loadtxt( "../imgs/aug_imgs/aug_vec_labels.dat").astype(np.int32))
+
+# colour, count, shape, fill
+n_data = len(vec_labels)
+print("Loading " + str( n_data ) + " images: "),
 
 imgs = []
 for i in range(n_data):
@@ -43,29 +33,58 @@ for i in range(n_data):
     im = im - img_mean
 
 print("Done.")
-print("Number of classes: " + str(n_classes) )
 x_dim, y_dim, n_channels = im.shape
 imgs = np.asarray(imgs)
-labels = np.asarray(labels)
-img_train, img_test, class_train, class_test = sk.train_test_split(imgs,labels,test_size=0.1 )
+img_train, img_test, class_train, class_test = sk.train_test_split(imgs,vec_labels,test_size=0.1 )
 
 hyperpars = {
-'drop_rate':0.4,
-'batch_size' : 10,
-'learning_rate' : 0.00001,
-'epochs' : 100000
+'drop_rate':0.5,
+'batch_size' : 64,
+'learning_rate' : 0.0001,
+'epochs' : 5000,
+'dense_size' : 64
 }
 
-if model == "":
-  cnn = models.CNN(im.shape, n_classes, hyperpars, name = "CNN1")
-  cnn.build_layers()
-  cnn.opt()
-  models.fit_model(cnn, [img_train,class_train, img_test, class_test])
-else:
-  cnn = models.CNN(im.shape, 4, hyperpars, name = "CNN2")
-  cnn.build_layers()
-  cnn.opt()
-  models.fit_model(cnn, [img_train,class_train, img_test, class_test])
+# # Train colour model
+# pos = 0
+# cnn = models.CNN(im.shape, 3, hyperpars, name = "colour")
+# cnn.build_layers()
+# cnn.opt()
+# models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
+
+cnn = 0.
+hyperpars['epochs'] = 100000
+hyperpars['dense_size'] = 128
+
+# # Train count model
+# pos = 1
+# cnn = models.CNN(im.shape, 3, hyperpars, name = "count")
+# cnn.build_layers()
+# cnn.opt()
+# models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
+
+cnn = 0.
+pos = 2
+# Train shape model
+cnn = models.CNN(im.shape, 3, hyperpars, name = "shape")
+cnn.build_layers()
+cnn.opt()
+models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
+
+
+# cnn = 0.
+# pos = 3
+# # Train fill model
+# cnn = models.CNN(im.shape, 3, hyperpars, name = "fill")
+# cnn.build_layers()
+# cnn.opt()
+# models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
+
+# else:
+#   cnn = models.CNN(im.shape, 4, hyperpars, name = "CNN2")
+#   cnn.build_layers()
+#   cnn.opt()
+#   models.fit_model(cnn, [img_train,class_train, img_test, class_test])
 ############## TESTS ##############
 # def test_change():
 #   # hyperpars don't matter here
