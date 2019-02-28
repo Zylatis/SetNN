@@ -106,7 +106,7 @@ def fit_model( model, data, **kwargs ):
 
 
 	
-
+	print("Training "  + model.name)
 	# Below is a specific,ish, model fitting routine so we need to check that the model comes with appropriate hyperparameters to use it
 	# We make local copies so we don't overwrite what is in the model already
 	try:
@@ -116,7 +116,7 @@ def fit_model( model, data, **kwargs ):
 		print("\nWARNING: Model " + model.name + " lacks appropriate hyper parameters, resorting test-case defaults\n")
 		batch_size = int(round(0.05*len(train_inp)))
 		epochs = 1000
-	# saver = tf.train.Saver()
+	saver = tf.train.Saver()
 	with tf.Session(config=config) as sess:
 		sess.run(init_op)
 		sess.run(local_op)

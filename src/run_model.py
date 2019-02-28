@@ -45,23 +45,23 @@ hyperpars = {
 'dense_size' : 64
 }
 
-# # Train colour model
-# pos = 0
-# cnn = models.CNN(im.shape, 3, hyperpars, name = "colour")
-# cnn.build_layers()
-# cnn.opt()
-# models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
+# Train colour model
+pos = 0
+cnn = models.CNN(im.shape, 3, hyperpars, name = "colour")
+cnn.build_layers()
+cnn.opt()
+models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
 
 cnn = 0.
-hyperpars['epochs'] = 100000
-hyperpars['dense_size'] = 128
+hyperpars['epochs'] = 50000
+hyperpars['dense_size'] = 256
 
-# # Train count model
-# pos = 1
-# cnn = models.CNN(im.shape, 3, hyperpars, name = "count")
-# cnn.build_layers()
-# cnn.opt()
-# models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
+# Train count model
+pos = 1
+cnn = models.CNN(im.shape, 3, hyperpars, name = "count")
+cnn.build_layers()
+cnn.opt()
+models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
 
 cnn = 0.
 pos = 2
@@ -72,13 +72,13 @@ cnn.opt()
 models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
 
 
-# cnn = 0.
-# pos = 3
-# # Train fill model
-# cnn = models.CNN(im.shape, 3, hyperpars, name = "fill")
-# cnn.build_layers()
-# cnn.opt()
-# models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
+cnn = 0.
+pos = 3
+# Train fill model
+cnn = models.CNN(im.shape, 3, hyperpars, name = "fill")
+cnn.build_layers()
+cnn.opt()
+models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
 
 # else:
 #   cnn = models.CNN(im.shape, 4, hyperpars, name = "CNN2")
