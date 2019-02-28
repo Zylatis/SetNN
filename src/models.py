@@ -18,7 +18,8 @@ class CNN:
 		self.n_classes = n_classes
 		self.hyperpars = hyperpars
 		print("Setup model: "),
-
+		self.train_accuracy = 0.
+		self.training = tf.placeholder(tf.bool, name='training')
 		# Merge kwargs and hyperpars into a temporary dict to make object variables
 		# (this may not be ideal down the line, though nothing is truly private in python anyway soooo...)
 		local_defs = copy.deepcopy(hyperpars)
@@ -36,6 +37,7 @@ class CNN:
 			except Exception as e:
 				print("\nCouldn't set " + k + " to value " + str(v) + " in model definition")
 		print("Done")
+
 	
 	def build_layers(self):
 		conv1_filters = 16
@@ -59,7 +61,7 @@ class CNN:
 
 		# Pooling Layer #1
 		pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[2, 2], strides=2)
-		pool1_norm = tf.contrib.layers.batch_norm(inputs = pool1)
+		pool1_norm =tf.layers.batch_normalization(inputs = pool1, training = self.training)
 		pool1_dropout = tf.layers.dropout( inputs=pool1_norm , rate=self.drop_rate )
 		# Convolutional Layer #2 and Pooling Layer #2
 		conv2 = tf.layers.conv2d(
@@ -72,7 +74,7 @@ class CNN:
 			kernel_regularizer=tf.contrib.layers.l1_regularizer(reg )
 			)
 		pool2 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
-		pool2_norm = tf.contrib.layers.batch_norm(inputs = pool2)
+		pool2_norm = tf.layers.batch_normalization(inputs = pool2, training = self.training)
 		pool2_flat =tf.reshape(pool2_norm, [-1, int(self.x_dim/4) * int(self.y_dim/4) * conv2_filters])
 		dense = tf.layers.dense(inputs=pool2_flat, units=dense_size, activation=tf.nn.relu, kernel_regularizer=tf.contrib.layers.l1_regularizer(reg )
 		)
@@ -82,29 +84,24 @@ class CNN:
 
 	# Define opt functions
 	def opt(self):
-		# print self.out.shape
-		# print self.logits.shape
 		self.cost = tf.losses.sparse_softmax_cross_entropy(labels=self.out, logits=self.logits) + tf.losses.get_regularization_loss()
-		
+		update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+		with tf.control_dependencies(update_ops):
+			self.optimiser = tf.train.AdamOptimizer( self.learning_rate ).minimize(self.cost)
 
-		# self.cost = tf.losses.mean_squared_error(labels=self.out, predictions=self.logits) + tf.losses.get_regularization_loss()
-		# update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-		# with tf.control_dependencies(update_ops):
-		self.optimiser = tf.train.AdamOptimizer( self.learning_rate ).minimize(self.cost)
-	
+
 # Pretty shit atm, massive clusterfuck of hyperparameter usage (some inside model, some inside fitting here)
 # Needs to be wrapped in larger class, and to understand how to feed in kwargs dict to feed_dict (i.e. with strings)
 def fit_model( model, data, **kwargs ):
-
+	model.opt()
 	# tf.summary.histogram("logits", model.logits)
 	tf.summary.scalar('cost', model.cost)
+	tf.summary.scalar('train_acc', model.train_accuracy)
 	merged = tf.summary.merge_all()
 	train_inp, train_out, test_inp, test_out = data
 	init_op = tf.global_variables_initializer()
 	local_op = tf.local_variables_initializer()
 	config = tf.ConfigProto( allow_soft_placement = True)
-
-
 	
 	print("Training "  + model.name)
 	# Below is a specific,ish, model fitting routine so we need to check that the model comes with appropriate hyperparameters to use it
@@ -121,23 +118,26 @@ def fit_model( model, data, **kwargs ):
 		sess.run(init_op)
 		sess.run(local_op)
 		writer = tf.summary.FileWriter("../models/" + model.name, sess.graph)
+		conv_count = 0
 		for epoch in range(epochs):
 				batch_pos = random.sample(range(0,len(train_inp)), batch_size)
 
 				with tf.name_scope("Batch_selection"):
 					batch_x = train_inp[batch_pos]
 					batch_y = train_out[batch_pos]
-				summary, _, c = sess.run([merged, model.optimiser, model.cost], feed_dict={model.inp: batch_x, model.out: batch_y})
+				# update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+				summary, _, c = sess.run([merged, model.optimiser, model.cost], feed_dict={model.inp: batch_x, model.out: batch_y, model.training: True})
 
 				if(epoch%100 == 0):
 				  dropout_save = model.drop_rate	
 				  model.drop_rate = 0. # for accuracy tests
-				  batch_train_predict =  np.argmax(sess.run(model.logits, feed_dict={model.inp: batch_x }), axis = 1)
+				  batch_train_predict =  np.argmax(sess.run(model.logits, feed_dict={model.inp: batch_x,model.training: True }), axis = 1)
 				  # batch_train_predict = sess.run(model.logits, feed_dict={model.inp: batch_x })
-				  test_predict =  np.argmax(sess.run(model.logits, feed_dict={model.inp: test_inp}), axis = 1)
+				  test_predict =  np.argmax(sess.run(model.logits, feed_dict={model.inp: test_inp, model.training: False}), axis = 1)
 				  # test_predict = sess.run(model.logits, feed_dict={model.inp: test_inp})
 				  
 				  batch_train_acc = fns.my_acc(batch_train_predict,batch_y)
+				  model.train_accuracy = batch_train_acc
 				  test_acc = fns.my_acc(test_predict,test_out)
 				  # batch_train_acc = fns.my_vec_acc(batch_train_predict,batch_y)
 				  # test_acc = fns.my_vec_acc(test_predict,test_out)
@@ -145,6 +145,14 @@ def fit_model( model, data, **kwargs ):
 				  writer.add_summary(summary, epoch)
 				  print(epoch,c, round(batch_train_acc, 2) , round(test_acc,2))
 				  model.drop_rate = dropout_save	
-		save_path = saver.save(sess, "../models/" +  model.name +"/" + model.name + ".ckpt")
+				  if(batch_train_acc >= 0.95):
+				  	conv_count += 1
+				  	if conv_count > 10:
+				  		break
+				  else:
+				  	conv_count = 0
 
+		save_path = saver.save(sess, "../models/" +  model.name +"/" + model.name + ".ckpt")
+	tf.reset_default_graph()
+	
 	 

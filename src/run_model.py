@@ -31,7 +31,7 @@ for i in range(n_data):
     imgs.append(im)
     img_mean = int(np.mean(im.flatten()))
     im = im - img_mean
-
+print(im.shape)
 print("Done.")
 x_dim, y_dim, n_channels = im.shape
 imgs = np.asarray(imgs)
@@ -41,7 +41,7 @@ hyperpars = {
 'drop_rate':0.5,
 'batch_size' : 64,
 'learning_rate' : 0.0001,
-'epochs' : 5000,
+'epochs' : 10000,
 'dense_size' : 64
 }
 
@@ -49,18 +49,16 @@ hyperpars = {
 pos = 0
 cnn = models.CNN(im.shape, 3, hyperpars, name = "colour")
 cnn.build_layers()
-cnn.opt()
 models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
 
 cnn = 0.
 hyperpars['epochs'] = 50000
-hyperpars['dense_size'] = 256
+hyperpars['dense_size'] = 128
 
 # Train count model
 pos = 1
 cnn = models.CNN(im.shape, 3, hyperpars, name = "count")
 cnn.build_layers()
-cnn.opt()
 models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
 
 cnn = 0.
