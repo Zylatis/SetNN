@@ -27,33 +27,34 @@ print("Loading " + str( n_data ) + " images: "),
 
 imgs = []
 for i in range(n_data):
-    im = np.asarray(Image.open( imgs_folder +str(i) + '.png' ))
-    imgs.append(im)
-    img_mean = int(np.mean(im.flatten()))
-    im = im - img_mean
+	im = np.asarray(Image.open( imgs_folder +str(i) + '.png' ))
+	imgs.append(im)
+	img_mean = int(np.mean(im.flatten()))
+	im = im - img_mean
 print(im.shape)
 print("Done.")
 x_dim, y_dim, n_channels = im.shape
 imgs = np.asarray(imgs)
 img_train, img_test, class_train, class_test = sk.train_test_split(imgs,vec_labels,test_size=0.1 )
 
+
 hyperpars = {
-'drop_rate':0.5,
-'batch_size' : 64,
+'drop_rate':0.4,
+'batch_size' : 256,
 'learning_rate' : 0.0001,
 'epochs' : 10000,
-'dense_size' : 64
+'dense_size' : 128
 }
 
 # Train colour model
-pos = 0
-cnn = models.CNN(im.shape, 3, hyperpars, name = "colour")
-cnn.build_layers()
-models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
+# pos = 0
+# cnn = models.CNN(im.shape, 3, hyperpars, name = "colour")
+# cnn.build_layers()
+# models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
 
-cnn = 0.
-hyperpars['epochs'] = 50000
-hyperpars['dense_size'] = 128
+del cnn
+# hyperpars['epochs'] = 20000
+# hyperpars['dense_size'] = 128
 
 # Train count model
 pos = 1
@@ -61,7 +62,7 @@ cnn = models.CNN(im.shape, 3, hyperpars, name = "count")
 cnn.build_layers()
 models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
 
-cnn = 0.
+del cnn
 pos = 2
 # Train shape model
 cnn = models.CNN(im.shape, 3, hyperpars, name = "shape")
@@ -70,13 +71,13 @@ cnn.opt()
 models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
 
 
-cnn = 0.
-pos = 3
-# Train fill model
-cnn = models.CNN(im.shape, 3, hyperpars, name = "fill")
-cnn.build_layers()
-cnn.opt()
-models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
+# del cnn
+# pos = 3
+# # Train fill model
+# cnn = models.CNN(im.shape, 3, hyperpars, name = "fill")
+# cnn.build_layers()
+# cnn.opt()
+# models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
 
 # else:
 #   cnn = models.CNN(im.shape, 4, hyperpars, name = "CNN2")

@@ -11,14 +11,15 @@ from operator import mul
 import copy
 import pandas as pd
 import fns
-
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 class CNN:
 	def __init__(self, im_shape, n_classes, hyperpars, **kwargs):
 		self.x_dim, self.y_dim, self.n_channels = im_shape
 		self.n_classes = n_classes
 		self.hyperpars = hyperpars
 		print("Setup model: "),
-		self.train_accuracy = 0.
+		# self.train_accuracy = 0.
 		self.training = tf.placeholder(tf.bool, name='training')
 		# Merge kwargs and hyperpars into a temporary dict to make object variables
 		# (this may not be ideal down the line, though nothing is truly private in python anyway soooo...)
@@ -94,9 +95,10 @@ class CNN:
 # Needs to be wrapped in larger class, and to understand how to feed in kwargs dict to feed_dict (i.e. with strings)
 def fit_model( model, data, **kwargs ):
 	model.opt()
-	# tf.summary.histogram("logits", model.logits)
+
+	myVar_tf = tf.placeholder(dtype=tf.float32)
 	tf.summary.scalar('cost', model.cost)
-	tf.summary.scalar('train_acc', model.train_accuracy)
+	tf.summary.scalar('train_acc',myVar_tf)
 	merged = tf.summary.merge_all()
 	train_inp, train_out, test_inp, test_out = data
 	init_op = tf.global_variables_initializer()
@@ -120,39 +122,40 @@ def fit_model( model, data, **kwargs ):
 		writer = tf.summary.FileWriter("../models/" + model.name, sess.graph)
 		conv_count = 0
 		for epoch in range(epochs):
-				batch_pos = random.sample(range(0,len(train_inp)), batch_size)
 
-				with tf.name_scope("Batch_selection"):
-					batch_x = train_inp[batch_pos]
-					batch_y = train_out[batch_pos]
-				# update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-				summary, _, c = sess.run([merged, model.optimiser, model.cost], feed_dict={model.inp: batch_x, model.out: batch_y, model.training: True})
+			batch_pos = random.sample(range(0,len(train_inp)), batch_size)
 
-				if(epoch%100 == 0):
-				  dropout_save = model.drop_rate	
-				  model.drop_rate = 0. # for accuracy tests
-				  batch_train_predict =  np.argmax(sess.run(model.logits, feed_dict={model.inp: batch_x,model.training: True }), axis = 1)
-				  # batch_train_predict = sess.run(model.logits, feed_dict={model.inp: batch_x })
-				  test_predict =  np.argmax(sess.run(model.logits, feed_dict={model.inp: test_inp, model.training: False}), axis = 1)
-				  # test_predict = sess.run(model.logits, feed_dict={model.inp: test_inp})
-				  
-				  batch_train_acc = fns.my_acc(batch_train_predict,batch_y)
-				  model.train_accuracy = batch_train_acc
-				  test_acc = fns.my_acc(test_predict,test_out)
-				  # batch_train_acc = fns.my_vec_acc(batch_train_predict,batch_y)
-				  # test_acc = fns.my_vec_acc(test_predict,test_out)
+			with tf.name_scope("Batch_selection"):
+				batch_x = train_inp[batch_pos]
+				batch_y = train_out[batch_pos]
+			# update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+			_, c = sess.run([model.optimiser, model.cost], feed_dict={model.inp: batch_x, model.out: batch_y, model.training: True})
 
-				  writer.add_summary(summary, epoch)
-				  print(epoch,c, round(batch_train_acc, 2) , round(test_acc,2))
-				  model.drop_rate = dropout_save	
-				  if(batch_train_acc >= 0.95):
-				  	conv_count += 1
-				  	if conv_count > 10:
-				  		break
-				  else:
-				  	conv_count = 0
+			if(epoch%100 == 0):
+			  dropout_save = model.drop_rate	
+			  model.drop_rate = 0. # for accuracy tests
+			  batch_train_predict =  np.argmax(sess.run(model.logits, feed_dict={model.inp: batch_x,model.training: True }), axis = 1)
+			  # batch_train_predict = sess.run(model.logits, feed_dict={model.inp: batch_x })
+			  test_predict =  np.argmax(sess.run(model.logits, feed_dict={model.inp: test_inp, model.training: False}), axis = 1)
+			  # test_predict = sess.run(model.logits, feed_dict={model.inp: test_inp})
+			  
+			  batch_train_acc = fns.my_acc(batch_train_predict,batch_y)
+			  # model.train_accuracy = batch_train_acc
+			  test_acc = fns.my_acc(test_predict,test_out)
+			  # batch_train_acc = fns.my_vec_acc(batch_train_predict,batch_y)
+			  # test_acc = fns.my_vec_acc(test_predict,test_out)
 
+			  summary = sess.run(merged , feed_dict={model.inp: batch_x, model.out: batch_y, model.training: True, myVar_tf : batch_train_acc})
+			  writer.add_summary(summary, epoch)
+			  
+			  print(epoch,c, round(batch_train_acc, 2) , round(test_acc,2))
+			  model.drop_rate = dropout_save	
+			  if(batch_train_acc >= 0.95):
+			  	conv_count += 1
+			  else:
+			  	conv_count = 0
+			  if conv_count >= 10:
+			  	break
 		save_path = saver.save(sess, "../models/" +  model.name +"/" + model.name + ".ckpt")
 	tf.reset_default_graph()
 	
-	 
