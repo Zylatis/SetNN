@@ -19,7 +19,7 @@ def yield_files():
 		if i.endswith('.png'):
 			# label =  ("_").join(  (i[:-4]).split('_')[2:6] ).strip()
 			im = np.asarray(Image.open( imgs_folder + "processed/"+str(i) )).astype(np.uint8)
-			yield [im, (i[:-4]).split('_')[2:6],i ]
+			yield [im, list(map(str.strip,(i[:-4]).split('_')[2:6])),i ]
 
 hyperpars = {
 'drop_rate':0.0,
@@ -28,19 +28,28 @@ hyperpars = {
 cnn = models.CNN((128,128,3), 3, hyperpars, name = "test")
 cnn.build_layers()
 original_files = yield_files()
+colour = ['red', 'purple', 'green']
+count = ['single','triple','double']
+shape = ['pill', 'diamond', 'squiggle']
+fill = ['empty', 'grid', 'solid']
 
-model_name = 'colour'
-colours = ['red', 'purple', 'green']
+
+model_name = 'fill'
+v = fill
+
 saver = tf.train.Saver()
+acc = 0
+n = 0
 with tf.Session() as sess:
 	saver.restore(sess, tf.train.latest_checkpoint("../models/" +  model_name +"/"))
 	for im in original_files:
 		prediction = sess.run(cnn.logits, feed_dict={cnn.inp: [im[0]],  cnn.training: False})
+		if v[np.argmax(prediction[0])] in im[1]:
+			acc +=1
+		print(v[np.argmax(prediction[0])], im[1])#,im[2])
+		n+=1
 
-		print(colours[np.argmax(prediction[0])], im[1],im[2])
-
-
-
+print(acc/(1.*n))
 # 	prediction = sess.run(cnn.logits, feed_dict={cnn.inp: x,  cnn.training: False})
 # colours = ['red', 'purple', 'green']
 

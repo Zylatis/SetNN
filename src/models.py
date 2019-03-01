@@ -12,6 +12,8 @@ import copy
 import pandas as pd
 import fns
 import os
+
+# Turn off TF reporting all sorts of CUDA reporting things
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 class CNN:
 	def __init__(self, im_shape, n_classes, hyperpars, **kwargs):
@@ -19,7 +21,7 @@ class CNN:
 		self.n_classes = n_classes
 		self.hyperpars = hyperpars
 		print("Setup model: "),
-		# self.train_accuracy = 0.
+	
 		self.training = tf.placeholder(tf.bool, name='training')
 		# Merge kwargs and hyperpars into a temporary dict to make object variables
 		# (this may not be ideal down the line, though nothing is truly private in python anyway soooo...)
@@ -57,7 +59,7 @@ class CNN:
 			kernel_size=[5, 5],
 			padding="same",
 			activation=tf.nn.relu,
-			kernel_regularizer=tf.contrib.layers.l1_regularizer(reg )
+			kernel_regularizer=tf.contrib.layers.l1_regularizer( reg )
 			)
 
 		# Pooling Layer #1
@@ -88,7 +90,7 @@ class CNN:
 		self.cost = tf.losses.sparse_softmax_cross_entropy(labels=self.out, logits=self.logits) + tf.losses.get_regularization_loss()
 		update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 		with tf.control_dependencies(update_ops):
-			self.optimiser = tf.train.AdamOptimizer( self.learning_rate ).minimize(self.cost)
+			self.optimiser = tf.train.AdamOptimizer( self.learning_rate ).minimize( self.cost )
 
 
 # Pretty shit atm, massive clusterfuck of hyperparameter usage (some inside model, some inside fitting here)
@@ -114,48 +116,44 @@ def fit_model( model, data, **kwargs ):
 	except:
 		print("\nWARNING: Model " + model.name + " lacks appropriate hyper parameters, resorting test-case defaults\n")
 		batch_size = int(round(0.05*len(train_inp)))
-		epochs = 1000
+		epochs = 10
+	
+	
+	batches = fns.make_batches(train_inp, train_out, batch_size)
 	saver = tf.train.Saver()
 	with tf.Session(config=config) as sess:
 		sess.run(init_op)
 		sess.run(local_op)
 		writer = tf.summary.FileWriter("../models/" + model.name, sess.graph)
 		conv_count = 0
-		for epoch in range(epochs):
+		step = 0
+		for epoch in range(1, epochs):
+			for batch in batches:
+				_, c = sess.run([model.optimiser, model.cost], feed_dict={model.inp: batch[0], model.out: batch[1], model.training: True})
 
-			batch_pos = random.sample(range(0,len(train_inp)), batch_size)
-
-			with tf.name_scope("Batch_selection"):
-				batch_x = train_inp[batch_pos]
-				batch_y = train_out[batch_pos]
-			# update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-			_, c = sess.run([model.optimiser, model.cost], feed_dict={model.inp: batch_x, model.out: batch_y, model.training: True})
-
-			if(epoch%100 == 0):
-			  dropout_save = model.drop_rate	
-			  model.drop_rate = 0. # for accuracy tests
-			  batch_train_predict =  np.argmax(sess.run(model.logits, feed_dict={model.inp: batch_x,model.training: True }), axis = 1)
-			  # batch_train_predict = sess.run(model.logits, feed_dict={model.inp: batch_x })
-			  test_predict =  np.argmax(sess.run(model.logits, feed_dict={model.inp: test_inp, model.training: False}), axis = 1)
-			  # test_predict = sess.run(model.logits, feed_dict={model.inp: test_inp})
-			  
-			  batch_train_acc = fns.my_acc(batch_train_predict,batch_y)
-			  # model.train_accuracy = batch_train_acc
-			  test_acc = fns.my_acc(test_predict,test_out)
-			  # batch_train_acc = fns.my_vec_acc(batch_train_predict,batch_y)
-			  # test_acc = fns.my_vec_acc(test_predict,test_out)
-
-			  summary = sess.run(merged , feed_dict={model.inp: batch_x, model.out: batch_y, model.training: True, myVar_tf : batch_train_acc})
-			  writer.add_summary(summary, epoch)
-			  
-			  print(epoch,c, round(batch_train_acc, 2) , round(test_acc,2))
-			  model.drop_rate = dropout_save	
-			  if(batch_train_acc >= 0.95):
-			  	conv_count += 1
-			  else:
-			  	conv_count = 0
-			  if conv_count >= 10:
-			  	break
+				dropout_save = model.drop_rate	
+				model.drop_rate = 0. # for accuracy tests
+				batch_train_predict =  np.argmax(sess.run(model.logits, feed_dict={model.inp: batch[0] ,model.training: True }), axis = 1)
+				test_predict =  np.argmax(sess.run(model.logits, feed_dict={model.inp: test_inp, model.training: False}), axis = 1)
+				  
+				batch_train_acc = fns.my_acc(batch_train_predict, batch[1])
+				test_acc = fns.my_acc(test_predict,test_out)
+				
+				summary = sess.run(merged , feed_dict={model.inp: batch[0], model.out: batch[1], model.training: True, myVar_tf : batch_train_acc})
+				writer.add_summary(summary, step)
+				model.drop_rate = dropout_save	
+				
+				if step % 10 == 0:
+					print(epoch,step,c, round( batch_train_acc, 2),  round( test_acc, 2), conv_count )
+				
+				step += 1
+			
+				if(batch_train_acc >= 0.90):
+					conv_count += 1
+				else:
+					conv_count = 0
+				if conv_count >= 10:
+					break
 		save_path = saver.save(sess, "../models/" +  model.name +"/" + model.name + ".ckpt")
 	tf.reset_default_graph()
 	
