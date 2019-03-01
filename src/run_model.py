@@ -51,8 +51,8 @@ hyperpars = {
 # cnn = models.CNN(im.shape, 3, hyperpars, name = "colour")
 # cnn.build_layers()
 # models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
+# del cnn
 
-del cnn
 # hyperpars['epochs'] = 20000
 # hyperpars['dense_size'] = 128
 
