@@ -40,15 +40,15 @@ seq = iaa.Sequential(
 		# )),
 		sometimes(iaa.Affine(
 			translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)}, # translate by -20 to +20 percent (per axis)
-			rotate=(-45, 45), # rotate by -45 to +45 degrees
+			rotate=(-90, 90), # rotate by -45 to +45 degrees
 			shear=(-10, 10), # shear by -16 to +16 degrees
 			# order=[0, 1], # use nearest neighbour or bilinear interpolation (fast)
 			# cval=(0, 255), # if mode is constant, use a cval between 0 and 255
-			mode=ia.ALL # use any of scikit-image's warping modes (see 2nd image from the top for examples)
+			# mode=ia.ALL # use any of scikit-image's warping modes (see 2nd image from the top for examples)
 		)),
 		# execute 0 to 5 of the following (less important) augmenters per image
 		# don't execute all of them, as that would often be way too strong
-		iaa.SomeOf((0, 5),
+		iaa.SomeOf((0, 3),
 			[
 				# sometimes(iaa.Superpixels(p_replace=(0, 1.0), n_segments=(20, 200))), # convert images into their superpixel representation
 				iaa.OneOf([
@@ -65,12 +65,12 @@ seq = iaa.Sequential(
 					# iaa.DirectedEdgeDetect(alpha=(0.5, 1.0), direction=(0.0, 1.0)),
 				# ])),
 				iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.05*255), per_channel=0.15), # add gaussian noise to images
-				# iaa.OneOf([
-				# 	iaa.Dropout((0.01, 0.1), per_channel=0.1), # randomly remove up to 10% of the pixels
-				# 	iaa.CoarseDropout((0.03, 0.15), size_percent=(0.02, 0.05)),
-				# ]),
+				iaa.OneOf([
+					iaa.Dropout((0.01, 0.1), per_channel=0.1), # randomly remove up to 10% of the pixels
+					iaa.CoarseDropout((0.03, 0.15), size_percent=(0.02, 0.05)),
+				]),
 				# iaa.Invert(0.05, per_channel=True), # invert color channels
-				iaa.Add((-10, 10), per_channel=0.25), # change brightness of images (by -10 to 10 of original value)
+				iaa.Add((-10, 10), per_channel=0.1), # change brightness of images (by -10 to 10 of original value)
 				# iaa.AddToHueAndSaturation((-20, 20)), # change hue and saturation
 				# either change the brightness of the whole image (sometimes
 				# per channel) or change the brightness of subareas
@@ -101,7 +101,7 @@ if n_raw == 0:
 	print("Run resize.py first, dumbarse.")
 	exit(0)
 
-n_replicates = 25
+n_replicates = 150
 count = 0
 img_generator = yield_files()
 all_labels = np.asarray([])
@@ -109,13 +109,13 @@ all_vec_labels = np.empty(shape=(1,4))
 total = n_raw*n_replicates
 
 
-max_classes = 61
+# max_classes = 61
 seenc = []
 sc = 0
 print("Augmenting images and saving")
 for img, label, vec_label in img_generator:
-	if len(seenc) >= max_classes:
-		break
+	# if len(seenc) >= max_classes:
+	# 	break
 	if label in seenc:
 		sc += 1
 	else:

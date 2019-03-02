@@ -25,11 +25,13 @@ hyperpars = {
 'drop_rate':0.0,
 'dense_size' : 128
 }
+
+
 cnn = models.CNN((128,128,3), 3, hyperpars, name = "test")
 cnn.build_layers()
 original_files = yield_files()
 colour = ['red', 'purple', 'green']
-count = ['single','triple','double']
+count = ['single','double', 'triple']
 shape = ['pill', 'diamond', 'squiggle']
 fill = ['empty', 'grid', 'solid']
 
@@ -59,8 +61,7 @@ with tf.Session() as sess:
 		draw.text((0, 10), scores ,(0,0,0))
 
 		im_show.save( imgs_folder + "/check_original/" + str(n) + ".png")
-		# im_show.show()
-
+		
 		n+=1
 
 

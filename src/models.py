@@ -17,7 +17,14 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 class CNN:
 	def __init__(self, im_shape, n_classes, hyperpars, **kwargs):
-		self.x_dim, self.y_dim, self.n_channels = im_shape
+		self.x_dim = im_shape[0]
+		self.y_dim = im_shape[1]
+
+		if len(im_shape) == 2:
+			self.inp_shape = [ None ] + list(im_shape) + [ 1 ]
+		else:
+			self.inp_shape = [ None ] + list(im_shape)
+
 		self.n_classes = n_classes
 		self.hyperpars = hyperpars
 		print("Setup model: "),
@@ -43,13 +50,13 @@ class CNN:
 
 	
 	def build_layers(self):
-		conv1_filters = 16
-		conv2_filters = 32
-		conv3_filters = 64
+		conv1_filters = 8
+		conv2_filters = 16
+		# conv3_filters = 64
 		dense_size = self.dense_size  
 		reg = 0.01
 		# Placeholders for input/output (fed from feed_dict)	 
-		self.inp = tf.placeholder(tf.float32, [None, self.x_dim,self.y_dim,self.n_channels], name = "input")
+		self.inp = tf.placeholder(tf.float32, self.inp_shape, name = "input")
 		self.out = tf.placeholder(tf.int32, [None], name = "output")
 
 		# Convolutional Layer #1
@@ -57,7 +64,7 @@ class CNN:
 			inputs=self.inp,
 			filters=conv1_filters,
 			data_format = 'channels_last',
-			kernel_size=[2,2],
+			kernel_size=[5,5],
 			padding="same",
 			activation=tf.nn.relu,
 			kernel_regularizer=tf.contrib.layers.l1_regularizer( reg )
@@ -74,7 +81,7 @@ class CNN:
 			inputs=pool1_dropout,
 			filters=conv2_filters,
 			data_format = 'channels_last',
-			kernel_size=[2,2],
+			kernel_size=[5,5],
 			padding="same",
 			activation=tf.nn.relu,
 			kernel_regularizer=tf.contrib.layers.l1_regularizer( reg )
@@ -86,23 +93,23 @@ class CNN:
 		pool2_norm =tf.layers.batch_normalization(inputs = pool2, training = self.training)
 		pool2_dropout = tf.layers.dropout( inputs=pool2_norm , rate=self.drop_rate, training = self.training )
 
-		# Convolutional Layer #3 
-		conv3 = tf.layers.conv2d(
-			inputs=pool2_dropout ,
-			filters=conv3_filters,
-			kernel_size=[2, 2],
-			padding="same",
-			data_format = 'channels_last',
-			activation=tf.nn.relu,
-			kernel_regularizer=tf.contrib.layers.l1_regularizer( reg )
-			)
+		# # Convolutional Layer #3 
+		# conv3 = tf.layers.conv2d(
+		# 	inputs=pool2_dropout ,
+		# 	filters=conv3_filters,
+		# 	kernel_size=[5, 5],
+		# 	padding="same",
+		# 	data_format = 'channels_last',
+		# 	activation=tf.nn.relu,
+		# 	kernel_regularizer=tf.contrib.layers.l1_regularizer( reg )
+		# 	)
 
-		pool3 = tf.layers.max_pooling2d(inputs=conv3, pool_size=[2, 2], strides=2)
-		pool3_norm = tf.layers.batch_normalization(inputs = pool3, training = self.training)
-		pool3_dropout = tf.layers.dropout( inputs=pool3_norm , rate=self.drop_rate, training = self.training )
+		# pool3 = tf.layers.max_pooling2d(inputs=conv3, pool_size=[2, 2], strides=2)
+		# pool3_norm = tf.layers.batch_normalization(inputs = pool3, training = self.training)
+		# pool3_dropout = tf.layers.dropout( inputs=pool3_norm , rate=self.drop_rate, training = self.training )
 		
-		flat =tf.reshape(pool3_dropout, [-1, int(self.x_dim/8) * int(self.y_dim/8) * conv3_filters])
-		# flat =tf.reshape(pool2_dropout, [-1, int(self.x_dim/4) * int(self.y_dim/4) * conv2_filters])
+		# flat =tf.reshape(pool3_dropout, [-1, int(self.x_dim/8) * int(self.y_dim/8) * conv3_filters])
+		flat =tf.reshape(pool2_dropout, [-1, int(self.x_dim/4) * int(self.y_dim/4) * conv2_filters])
 		dense = tf.layers.dense(inputs=flat, units=dense_size, activation=tf.nn.relu, kernel_regularizer=tf.contrib.layers.l1_regularizer( reg ))
 		dense_dropout = tf.layers.dropout( inputs=dense, rate=self.drop_rate )
 		self.logits = tf.layers.dense(inputs=dense_dropout, units = self.n_classes,activation=tf.nn.relu)
@@ -145,7 +152,7 @@ def fit_model( model, data, **kwargs ):
 	
 	converged = False
 	batches = fns.make_batches(train_inp, train_out, batch_size)
-	saver = tf.train.Saver()
+	saver = tf.train.Saver(tf.trainable_variables())
 	with tf.Session(config = config) as sess:
 		sess.run(init_op)
 		sess.run(local_op)
@@ -170,13 +177,13 @@ def fit_model( model, data, **kwargs ):
 					print(epoch,step,c, round( batch_train_acc, 2),  round( test_acc, 2)  )
 				
 				cost_history.append( c )
-				if fns.is_converged(cost_history, 100, 0.01) :
+				if fns.is_converged(cost_history, 100, 0.05) :
 					converged = True
 					break
 				step += 1
 			if converged:
 				break	
 		np.savetxt( "../models/" +  model.name +"/" + model.name + ".log", log, delimiter = "\t")
-		save_path = saver.save(sess, "../models/" +  model.name +"/" + model.name + ".ckpt")
+		save_path = saver.save(sess, "../models/" +  model.name +"/" + model.name + ".ckpt", max_to_keep = 1)
 	tf.reset_default_graph()
 	
