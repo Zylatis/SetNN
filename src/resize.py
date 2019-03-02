@@ -15,8 +15,8 @@ def crop_center(img,cropx,cropy):
 
 
 imgs = []
-target_x = 128
-target_y = 128
+target_x = 256
+target_y = 256
 count = 0
 labels = []
 for i in os.listdir( imgs_folder + "isolated/"):

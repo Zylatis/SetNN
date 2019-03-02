@@ -1,6 +1,6 @@
 import numpy as np 
 import os
-from PIL import Image # gives better output control than matplotlib
+from PIL import Image, ImageFont, ImageDraw # gives better output control than matplotlib
 import classes
 import tensorflow as tf
 import random
@@ -34,12 +34,13 @@ shape = ['pill', 'diamond', 'squiggle']
 fill = ['empty', 'grid', 'solid']
 
 
-model_name = 'fill'
-v = fill
+model_name = 'count'
+v = count
 
 saver = tf.train.Saver()
 acc = 0
 n = 0
+font = ImageFont.truetype("arial.ttf", 8)
 with tf.Session() as sess:
 	saver.restore(sess, tf.train.latest_checkpoint("../models/" +  model_name +"/"))
 	for im in original_files:
@@ -47,10 +48,20 @@ with tf.Session() as sess:
 		if v[np.argmax(prediction[0])] in im[1]:
 			acc +=1
 		print(v[np.argmax(prediction[0])], im[1])#,im[2])
+		
+		
+		labels = " ".join( v ) 
+		scores = " ".join([ str(round(x/np.sum(prediction[0] ),2)) for x in prediction[0] ])
+
+		im_show = Image.fromarray(im[0])
+		draw = ImageDraw.Draw(im_show)
+		draw.text((0, 0),  labels ,(0,0,0))
+		draw.text((0, 10), scores ,(0,0,0))
+
+		im_show.save( imgs_folder + "/check_original/" + str(n) + ".png")
+		# im_show.show()
+
 		n+=1
 
-print(acc/(1.*n))
-# 	prediction = sess.run(cnn.logits, feed_dict={cnn.inp: x,  cnn.training: False})
-# colours = ['red', 'purple', 'green']
 
-# print(colours[np.argmax(prediction[0])], y)
+print( acc/(1.*n))

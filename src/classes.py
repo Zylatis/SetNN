@@ -3,7 +3,7 @@ import itertools
 	
 def get_labels():	
 	colours = ['red', 'purple', 'green']
-	counts = ['single','triple','double']
+	counts = ['single','double', 'triple']
 	shape = ['pill', 'diamond', 'squiggle']
 	fill = ['empty', 'grid', 'solid']
 

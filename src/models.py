@@ -45,6 +45,7 @@ class CNN:
 	def build_layers(self):
 		conv1_filters = 16
 		conv2_filters = 32
+		conv3_filters = 64
 		dense_size = self.dense_size  
 		reg = 0.01
 		# Placeholders for input/output (fed from feed_dict)	 
@@ -56,7 +57,7 @@ class CNN:
 			inputs=self.inp,
 			filters=conv1_filters,
 			data_format = 'channels_last',
-			kernel_size=[5, 5],
+			kernel_size=[2,2],
 			padding="same",
 			activation=tf.nn.relu,
 			kernel_regularizer=tf.contrib.layers.l1_regularizer( reg )
@@ -64,27 +65,49 @@ class CNN:
 
 		# Pooling Layer #1
 		pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[2, 2], strides=2)
+		# pool1 = tf.layers.average_pooling2d(inputs=conv1, pool_size=[2, 2], strides=2)
 		pool1_norm =tf.layers.batch_normalization(inputs = pool1, training = self.training)
-		pool1_dropout = tf.layers.dropout( inputs=pool1_norm , rate=self.drop_rate )
-		# Convolutional Layer #2 and Pooling Layer #2
+		pool1_dropout = tf.layers.dropout( inputs=pool1_norm, rate=self.drop_rate, training = self.training )
+
+		# Convolutional Layer #2
 		conv2 = tf.layers.conv2d(
-			inputs=pool1_dropout ,
+			inputs=pool1_dropout,
 			filters=conv2_filters,
-			kernel_size=[5, 5],
+			data_format = 'channels_last',
+			kernel_size=[2,2],
+			padding="same",
+			activation=tf.nn.relu,
+			kernel_regularizer=tf.contrib.layers.l1_regularizer( reg )
+			)
+
+		# Pooling Layer #2
+		pool2 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
+		# pool2 = tf.layers.average_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
+		pool2_norm =tf.layers.batch_normalization(inputs = pool2, training = self.training)
+		pool2_dropout = tf.layers.dropout( inputs=pool2_norm , rate=self.drop_rate, training = self.training )
+
+		# Convolutional Layer #3 
+		conv3 = tf.layers.conv2d(
+			inputs=pool2_dropout ,
+			filters=conv3_filters,
+			kernel_size=[2, 2],
 			padding="same",
 			data_format = 'channels_last',
 			activation=tf.nn.relu,
-			kernel_regularizer=tf.contrib.layers.l1_regularizer(reg )
+			kernel_regularizer=tf.contrib.layers.l1_regularizer( reg )
 			)
-		pool2 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
-		pool2_norm = tf.layers.batch_normalization(inputs = pool2, training = self.training)
-		pool2_flat =tf.reshape(pool2_norm, [-1, int(self.x_dim/4) * int(self.y_dim/4) * conv2_filters])
-		dense = tf.layers.dense(inputs=pool2_flat, units=dense_size, activation=tf.nn.relu, kernel_regularizer=tf.contrib.layers.l1_regularizer(reg )
-		)
+
+		pool3 = tf.layers.max_pooling2d(inputs=conv3, pool_size=[2, 2], strides=2)
+		pool3_norm = tf.layers.batch_normalization(inputs = pool3, training = self.training)
+		pool3_dropout = tf.layers.dropout( inputs=pool3_norm , rate=self.drop_rate, training = self.training )
+		
+		flat =tf.reshape(pool3_dropout, [-1, int(self.x_dim/8) * int(self.y_dim/8) * conv3_filters])
+		# flat =tf.reshape(pool2_dropout, [-1, int(self.x_dim/4) * int(self.y_dim/4) * conv2_filters])
+		dense = tf.layers.dense(inputs=flat, units=dense_size, activation=tf.nn.relu, kernel_regularizer=tf.contrib.layers.l1_regularizer( reg ))
 		dense_dropout = tf.layers.dropout( inputs=dense, rate=self.drop_rate )
 		self.logits = tf.layers.dense(inputs=dense_dropout, units = self.n_classes,activation=tf.nn.relu)
 		
-
+	
 	# Define opt functions
 	def opt(self):
 		self.cost = tf.losses.sparse_softmax_cross_entropy(labels=self.out, logits=self.logits) + tf.losses.get_regularization_loss()
@@ -96,17 +119,19 @@ class CNN:
 # Pretty shit atm, massive clusterfuck of hyperparameter usage (some inside model, some inside fitting here)
 # Needs to be wrapped in larger class, and to understand how to feed in kwargs dict to feed_dict (i.e. with strings)
 def fit_model( model, data, **kwargs ):
+	log = np.array([[0,0,0,0,0]])
 	model.opt()
 
 	myVar_tf = tf.placeholder(dtype=tf.float32)
 	tf.summary.scalar('cost', model.cost)
 	tf.summary.scalar('train_acc',myVar_tf)
+
 	merged = tf.summary.merge_all()
 	train_inp, train_out, test_inp, test_out = data
 	init_op = tf.global_variables_initializer()
 	local_op = tf.local_variables_initializer()
 	config = tf.ConfigProto( allow_soft_placement = True)
-	
+	cost_history = []
 	print("Training "  + model.name)
 	# Below is a specific,ish, model fitting routine so we need to check that the model comes with appropriate hyperparameters to use it
 	# We make local copies so we don't overwrite what is in the model already
@@ -118,10 +143,10 @@ def fit_model( model, data, **kwargs ):
 		batch_size = int(round(0.05*len(train_inp)))
 		epochs = 10
 	
-	
+	converged = False
 	batches = fns.make_batches(train_inp, train_out, batch_size)
 	saver = tf.train.Saver()
-	with tf.Session(config=config) as sess:
+	with tf.Session(config = config) as sess:
 		sess.run(init_op)
 		sess.run(local_op)
 		writer = tf.summary.FileWriter("../models/" + model.name, sess.graph)
@@ -129,31 +154,29 @@ def fit_model( model, data, **kwargs ):
 		step = 0
 		for epoch in range(1, epochs):
 			for batch in batches:
-				_, c = sess.run([model.optimiser, model.cost], feed_dict={model.inp: batch[0], model.out: batch[1], model.training: True})
-
-				dropout_save = model.drop_rate	
-				model.drop_rate = 0. # for accuracy tests
+				_, c = sess.run( [ model.optimiser, model.cost ], feed_dict={ model.inp: batch[0], model.out: batch[1], model.training: True} )
+				
 				batch_train_predict =  np.argmax(sess.run(model.logits, feed_dict={model.inp: batch[0] ,model.training: True }), axis = 1)
 				test_predict =  np.argmax(sess.run(model.logits, feed_dict={model.inp: test_inp, model.training: False}), axis = 1)
 				  
 				batch_train_acc = fns.my_acc(batch_train_predict, batch[1])
 				test_acc = fns.my_acc(test_predict,test_out)
 				
-				summary = sess.run(merged , feed_dict={model.inp: batch[0], model.out: batch[1], model.training: True, myVar_tf : batch_train_acc})
+				summary = sess.run(merged , feed_dict={ model.inp: batch[0], model.out: batch[1], model.training: True, myVar_tf : batch_train_acc })
 				writer.add_summary(summary, step)
-				model.drop_rate = dropout_save	
-				
+				log = np.concatenate((log,[[epoch, step, c, batch_train_acc, test_acc]]), axis = 0)
+
 				if step % 10 == 0:
-					print(epoch,step,c, round( batch_train_acc, 2),  round( test_acc, 2), conv_count )
+					print(epoch,step,c, round( batch_train_acc, 2),  round( test_acc, 2)  )
 				
-				step += 1
-			
-				if(batch_train_acc >= 0.90):
-					conv_count += 1
-				else:
-					conv_count = 0
-				if conv_count >= 10:
+				cost_history.append( c )
+				if fns.is_converged(cost_history, 100, 0.01) :
+					converged = True
 					break
+				step += 1
+			if converged:
+				break	
+		np.savetxt( "../models/" +  model.name +"/" + model.name + ".log", log, delimiter = "\t")
 		save_path = saver.save(sess, "../models/" +  model.name +"/" + model.name + ".ckpt")
 	tf.reset_default_graph()
 	
