@@ -23,12 +23,13 @@ def yield_files():
 
 hyperpars = {
 'drop_rate':0.0,
-'dense_size' : 128
+'dense_size' : 32
 }
 
 
 cnn = models.CNN((128,128,3), 3, hyperpars, name = "test")
 cnn.build_layers()
+cnn.training = False
 original_files = yield_files()
 colour = ['red', 'purple', 'green']
 count = ['single','double', 'triple']
@@ -40,8 +41,8 @@ model_name = 'count'
 v = count
 
 saver = tf.train.Saver()
-acc = 0
-n = 0
+acc = 
+0n = 0
 font = ImageFont.truetype("arial.ttf", 8)
 with tf.Session() as sess:
 	saver.restore(sess, tf.train.latest_checkpoint("../models/" +  model_name +"/"))

@@ -51,16 +51,19 @@ hyperpars = {
 'drop_rate' : 0.4,
 'batch_size' : 512,
 'learning_rate' : 0.0001,
-'epochs' : 25,
-'dense_size' : 32#128
+'epochs' : 50,
+'dense_size' : 64,#128,
+'conv_filters' : [ 16, 32 ]
 }
 
 # Train colour model
-# pos = 0
-# cnn = models.CNN(im.shape, 3, hyperpars, name = "colour")
-# cnn.build_layers()
-# models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
-# del cnn
+pos = 0
+cnn = models.CNN(im.shape, 3, hyperpars, name = "colour")
+cnn.build_layers()
+models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
+del cnn
+
+hyperpars['dense_size'] = 128
 
 # Train count model
 pos = 1
@@ -70,7 +73,7 @@ models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]
 del cnn
 
 
-hyperpars['dense_size']  = 256 #512
+hyperpars['dense_size']  = 512 #512
 
 pos = 2
 # Train fill model
