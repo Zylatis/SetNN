@@ -2,3 +2,8 @@ imgs/processed/*
 imgs/isolated_grouped/
 imgs/raw
 imgs/isolated_orig
+src/*.pyc
+src/__pycache__
+imgs/*tar.gz
+imgs/archive
+src/tensorboards
