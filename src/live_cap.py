@@ -15,6 +15,7 @@ import fns
 import cv2
 
 
+
 cap = cv2.VideoCapture(0)
 
 hyperpars = {
@@ -25,7 +26,11 @@ hyperpars = {
 }
 
 
-cnn = models.CNN((128,128,3), 3, hyperpars, name = "test")
+# cnn = models.CNN((128,128,3), 3, hyperpars, name = "test")
+
+test = models.CNN_multi((128,128,3), 3, hyperpars, name = "test")
+test.build_branch(128,[16,32])
+exit(0)
 cnn.build_layers()
 cnn.training = False
 # original_files = yield_files()
