@@ -51,7 +51,7 @@ hyperpars = {
 'drop_rate' : 0.4,
 'batch_size' : 512,
 'learning_rate' : 0.0001,
-'epochs' : 50,
+'epochs' : 2,
 'dense_size' : 64,#128,
 'conv_filters' : [ 16, 32 ]
 }
@@ -63,6 +63,7 @@ cnn.build_layers()
 models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
 del cnn
 
+exit(0)
 hyperpars['dense_size'] = 128
 
 # Train count model

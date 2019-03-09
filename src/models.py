@@ -29,7 +29,7 @@ class CNN:
 		self.hyperpars = hyperpars
 		print("Setup model: "),
 	
-		self.training = tf.placeholder(tf.bool, name='training')
+		self.training = tf.placeholder(tf.bool)
 		# Merge kwargs and hyperpars into a temporary dict to make object variables
 		# (this may not be ideal down the line, though nothing is truly private in python anyway soooo...)
 		local_defs = copy.deepcopy(hyperpars)
