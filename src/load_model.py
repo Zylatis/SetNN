@@ -21,17 +21,8 @@ def yield_files():
 			im = np.asarray(Image.open( imgs_folder + "processed/"+str(i) )).astype(np.uint8)
 			yield [im, list(map(str.strip,(i[:-4]).split('_')[2:6])),i ]
 
-hyperpars = {
-'drop_rate':0.0,
-'dense_size' : 64,
-'conv_filters' : [ 16, 32 ],
-'training' : False
-}
 
 
-cnn = models.CNN((128,128,3), 3, hyperpars, name = "test")
-cnn.build_layers()
-cnn.training = False
 original_files = yield_files()
 colour = ['red', 'purple', 'green']
 count = ['single','double', 'triple']
@@ -42,14 +33,20 @@ fill = ['empty', 'grid', 'solid']
 model_name = 'colour'
 v = colour
 
-saver = tf.train.Saver()
+saver = tf.train.import_meta_graph("../models/" +  model_name +"/"+model_name+".ckpt.meta")
 acc = 0
 n = 0
-# font = ImageFont.truetype("arial.ttf", 8)
+
 with tf.Session() as sess:
-	saver.restore(sess, tf.train.latest_checkpoint("../models/" +  model_name +"/"))
+	saver.restore(sess,tf.train.latest_checkpoint("../models/" +  model_name +"/"))
+	graph = tf.get_default_graph()
+	inp = graph.get_tensor_by_name("input:0")
+	logits = graph.get_tensor_by_name("logits/BiasAdd:0")
+	training = graph.get_tensor_by_name("training:0")
+	
 	for im in original_files:
-		prediction = sess.run(cnn.logits, feed_dict={cnn.inp: [im[0]]})
+		prediction = sess.run(logits, feed_dict={inp: [im[0]], training : False})
+
 		if v[np.argmax(prediction[0])] in im[1]:
 			acc +=1
 		print(v[np.argmax(prediction[0])], im[1])#,im[2])

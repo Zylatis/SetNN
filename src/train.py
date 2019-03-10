@@ -37,60 +37,115 @@ for i in range(n_data):
 	
 print(im.shape)
 print("Done.")
-random.seed(0)
+# random.seed(0)
 imgs = np.asarray(imgs)
-img_train, img_test, class_train, class_test = sk.train_test_split( imgs, vec_labels, test_size = 0.1, shuffle = True )
-
 n = len( imgs )
-img_train = img_train[:n]
-img_test = img_test[:n]
-class_train = class_train[:n]
-class_test = class_test[:n]
+img_train, img_test, class_train, class_test = sk.train_test_split( imgs[:n], vec_labels[:n], test_size = 0.1, shuffle = True )
+
+img_train = img_train
+img_test = img_test
+class_train = class_train
+class_test = class_test
 
 hyperpars = {
 'drop_rate' : 0.4,
-'batch_size' : 512,
-'learning_rate' : 0.0001,
-'epochs' : 2,
-'dense_size' : 64,#128,
-'conv_filters' : [ 16, 32 ]
+'learning_rate' : 0.01
 }
 
-# Train colour model
-pos = 0
-cnn = models.CNN(im.shape, 3, hyperpars, name = "colour")
-cnn.build_layers()
-models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
-del cnn
+epochs = 5
+test = models.CNN_multi(im.shape, 3, hyperpars, name = "test")
+test.build_branch(64,[16,32],'colour')
+test.build_branch(128,[16,32],'counts')
+test.build_branch(512,[16,32],'fill')
+test.build_branch(512,[16,32],'shape')
+test.opt()
 
+init_op = tf.global_variables_initializer()
+local_op = tf.local_variables_initializer()
+config = tf.ConfigProto( allow_soft_placement = True)
+batches = fns.make_batches(img_train, class_train, 50)
+print len(class_train)
 exit(0)
-hyperpars['dense_size'] = 128
+saver = tf.train.Saver()
+with tf.Session(config = config) as sess:
+	sess.run([init_op,local_op])
+	for epoch in range(1, epochs):
+		for batch in batches:
 
-# Train count model
-pos = 1
-cnn = models.CNN(im.shape, 3, hyperpars, name = "count")
-cnn.build_layers()
-models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
-del cnn
+			batch_summary = {}			
+			_,c = sess.run( [ test.optimiser, test.total_cost ], feed_dict={ test.inp: batch[0], test.out: batch[1], test.training: True} )
+			print c
+
+			
+			for branch, output in test.logits.items():
+				batch_train_predict = np.argmax(sess.run(output, feed_dict={test.inp: batch[0], test.training: True }), axis = 1)
+				# print batch_train_predict
+				# exit(0)
+				batch_train_acc = fns.my_acc(batch_train_predict, batch[1][:,test.pos[branch]])
+				print batch_train_predict
+				print batch[1][:,test.pos[branch]]
+				exit(0)
+
+				# print(batch_train_acc)
+				# exit(0)
+				batch_summary[branch] = [batch_train_acc]
+			print pd.DataFrame.from_dict(batch_summary)
+			# batch_train_predict =  np.argmax(sess.run(test.logits['colour'], feed_dict={test.inp: batch[0], test.training: True }), axis = 1)
+			# test_predict =  np.argmax(sess.run(test.logits, feed_dict={test.inp: test_inp, test.training: False}), axis = 1)
+
+		
+			  
+		# 	batch_train_acc = fns.my_acc(batch_train_predict, batch[1])
+		# 	test_acc = fns.my_acc(test_predict,test_out)
+		
+		# 	summary = sess.run(merged , feed_dict={ test.inp: batch[0], test.out: batch[1], test.training: True, myVar_tf : batch_train_acc })
+		# 	writer.add_summary(summary, step)
+		# 	log = np.concatenate((log,[[epoch, step, c, batch_train_acc, test_acc]]), axis = 0)
+
+		# 	if step % 10 == 0:
+		# 		print(epoch,step,c, round( batch_train_acc, 2),  round( test_acc, 2)  )
+			
+		# 	cost_history.append( c )
+		# 	if fns.is_converged(cost_history, 100, 0.05) :
+		# 		converged = True
+		# 		break
+		# 	step += 1
+		# if converged:
+		# 	break	
+	save_path = saver.save(sess, "../models/multi_branch/multi_branch.ckpt")
+tf.reset_default_graph()
+# pos = 0
+# cnn = models.CNN(im.shape, 3, hyperpars, name = "colour")
+# cnn.build_layers()
+# models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
+# del cnn
+
+# exit(0)
+# hyperpars['dense_size'] = 128
 
 
-hyperpars['dense_size']  = 512 #512
-
-pos = 2
-# Train fill model
-cnn = models.CNN(im.shape, 3, hyperpars, name = "fill")
-cnn.build_layers()
-cnn.opt()
-models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
+# pos = 1
+# cnn = models.CNN(im.shape, 3, hyperpars, name = "count")
+# cnn.build_layers()
+# models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
+# del cnn
 
 
-pos = 3
-# Train shape model
-cnn = models.CNN(im.shape, 3, hyperpars, name = "shape")
-cnn.build_layers()
-cnn.opt()
-models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
-del cnn
+# hyperpars['dense_size']  = 512 #512
+
+# pos = 2
+# cnn = models.CNN(im.shape, 3, hyperpars, name = "fill")
+# cnn.build_layers()
+# cnn.opt()
+# models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
+
+
+# pos = 3
+# cnn = models.CNN(im.shape, 3, hyperpars, name = "shape")
+# cnn.build_layers()
+# cnn.opt()
+# models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
+# del cnn
 
 
 

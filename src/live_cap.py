@@ -21,19 +21,19 @@ cap = cv2.VideoCapture(0)
 hyperpars = {
 'drop_rate':0.0,
 'dense_size' : 64,
-'conv_filters' : [ 16, 32 ],
-'training' : False
+'conv_filters' : [ 16, 32 ]
 }
 
 
-# cnn = models.CNN((128,128,3), 3, hyperpars, name = "test")
+cnn = models.CNN((128,128,3), 3, hyperpars, name = "test")
 
-test = models.CNN_multi((128,128,3), 3, hyperpars, name = "test")
-test.build_branch(128,[16,32])
-exit(0)
+# test = models.CNN_multi((128,128,3), 3, hyperpars, name = "test")
+# test.build_branch(128,[16,32])
+# exit(0)
 cnn.build_layers()
-cnn.training = False
+# cnn.training = False
 # original_files = yield_files()
+
 colour = ['red', 'purple', 'green']
 count = ['single','double', 'triple']
 shape = ['pill', 'diamond', 'squiggle']
@@ -53,10 +53,11 @@ with tf.Session() as sess:
 	while 1:
 		ret, im = cap.read()
 		im = cv2.resize(im , (128,128), interpolation = cv2.INTER_AREA)
-		prediction = sess.run(cnn.logits, feed_dict={cnn.inp: [im]})
+		prediction = sess.run(cnn.logits, feed_dict={cnn.inp: [im], cnn.training : False})
 		
 		print(v[np.argmax(prediction[0])])
 		
+		exit(0)
 		k = cv2.waitKey(30)
 		if k == 27:
 			break

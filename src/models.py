@@ -27,9 +27,10 @@ class CNN:
 
 		self.n_classes = n_classes
 		self.hyperpars = hyperpars
+		# self.logits =
 		print("Setup model: "),
 	
-		self.training = tf.placeholder(tf.bool)
+		self.training = tf.placeholder(tf.bool, name = "training")
 		# Merge kwargs and hyperpars into a temporary dict to make object variables
 		# (this may not be ideal down the line, though nothing is truly private in python anyway soooo...)
 		local_defs = copy.deepcopy(hyperpars)
@@ -55,7 +56,7 @@ class CNN:
 		# Placeholders for input/output (fed from feed_dict)	 
 		self.inp = tf.placeholder(tf.float32, self.inp_shape, name = "input")
 		self.out = tf.placeholder(tf.int32, [None], name = "output")
-
+		# self.logits_var = tf.Variable([0]*self.n_classes,name = "logits")
 		# Convolutional Layer #1
 		conv1 = tf.layers.conv2d(
 			inputs=self.inp,
@@ -86,31 +87,14 @@ class CNN:
 
 		# Pooling Layer #2
 		pool2 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
-		# pool2 = tf.layers.average_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
 		pool2_norm =tf.layers.batch_normalization(inputs = pool2, training = self.training)
 		pool2_dropout = tf.layers.dropout( inputs=pool2_norm , rate=self.drop_rate, training = self.training )
 
-		# # Convolutional Layer #3 
-		# conv3 = tf.layers.conv2d(
-		# 	inputs=pool2_dropout ,
-		# 	filters=conv3_filters,
-		# 	kernel_size=[5, 5],
-		# 	padding="same",
-		# 	data_format = 'channels_last',
-		# 	activation=tf.nn.relu,
-		# 	kernel_regularizer=tf.contrib.layers.l1_regularizer( reg )
-		# 	)
-
-		# pool3 = tf.layers.max_pooling2d(inputs=conv3, pool_size=[2, 2], strides=2)
-		# pool3_norm = tf.layers.batch_normalization(inputs = pool3, training = self.training)
-		# pool3_dropout = tf.layers.dropout( inputs=pool3_norm , rate=self.drop_rate, training = self.training )
 		
-		# flat =tf.reshape(pool3_dropout, [-1, int(self.x_dim/8) * int(self.y_dim/8) * conv3_filters])
 		flat =tf.reshape(pool2_dropout, [-1, int(self.x_dim/4) * int(self.y_dim/4) * self.conv_filters[1]])
 		dense = tf.layers.dense(inputs=flat, units=dense_size, activation=tf.nn.relu, kernel_regularizer=tf.contrib.layers.l1_regularizer( reg ))
 		dense_dropout = tf.layers.dropout( inputs=dense, rate=self.drop_rate )
-		self.logits = tf.layers.dense(inputs=dense_dropout, units = self.n_classes,activation=tf.nn.relu)
-		
+		self.logits = tf.layers.dense(inputs=dense_dropout, units = self.n_classes,activation=tf.nn.relu, name = "logits")
 	
 	# Define opt functions
 	def opt(self):
@@ -192,7 +176,8 @@ class CNN_multi:
 	def __init__(self, im_shape, n_classes, hyperpars, **kwargs):
 		self.x_dim = im_shape[0]
 		self.y_dim = im_shape[1]
-
+		self.cost_fns = {}
+		self.logits = {}
 		if len(im_shape) == 2:
 			self.inp_shape = [ None ] + list(im_shape) + [ 1 ]
 		else:
@@ -200,9 +185,15 @@ class CNN_multi:
 
 		self.n_classes = n_classes
 		self.hyperpars = hyperpars
+
+		self.pos = {"colour" : 0, "counts" : 1, "fill" : 2, "shape" : 3}
+
 		print("Setup model: "),
 	
-		self.training = tf.placeholder(tf.bool)
+		self.inp = tf.placeholder(tf.float32, self.inp_shape, name = "input")
+		self.out = tf.placeholder(tf.int32, [None,4], name = "output")
+		
+		self.training = tf.placeholder(tf.bool, name = "training")
 		# Merge kwargs and hyperpars into a temporary dict to make object variables
 		# (this may not be ideal down the line, though nothing is truly private in python anyway soooo...)
 		local_defs = copy.deepcopy(hyperpars)
@@ -223,6 +214,7 @@ class CNN_multi:
 
 
 	def build_conv_section( self, input, filters, kernel, activation, reg):
+
 		conv = tf.layers.conv2d(
 			inputs=input,
 			filters=filters,
@@ -240,25 +232,28 @@ class CNN_multi:
 		return(pool_dropout)
 
 
-	def build_branch(self, dense_size, conv_filters ):
+	def build_branch(self, dense_size, conv_filters, name ):
+		pos = self.pos[name]
 		reg = 0.01
 		# Placeholders for input/output (fed from feed_dict)	 
-		inp = tf.placeholder(tf.float32, self.inp_shape, name = "input")
-		out = tf.placeholder(tf.int32, [None], name = "output")
-
-		layer1 = self.build_conv_section( inp, conv_filters[0], [5,5], tf.nn.relu, reg)
+		layer1 = self.build_conv_section( self.inp, conv_filters[0], [5,5], tf.nn.relu, reg)
 		layer2 = self.build_conv_section( layer1, conv_filters[1], [5,5], tf.nn.relu, reg)
 
-		flat =tf.reshape(layer2, [-1, int(self.x_dim/4) * int(self.y_dim/4) * self.conv_filters[1]])
+		flat =tf.reshape(layer2, [-1, int(self.x_dim/4) * int(self.y_dim/4) * conv_filters[1]])
 		dense = tf.layers.dense(inputs=flat, units=dense_size, activation=tf.nn.relu, kernel_regularizer=tf.contrib.layers.l1_regularizer( reg ))
 		dense_dropout = tf.layers.dropout( inputs=dense, rate=self.drop_rate )
-		logits = tf.layers.dense(inputs=dense_dropout, units = self.n_classes,activation=tf.nn.relu)
-
-		# return(inp, out, logits)
+		logits = tf.layers.dense(inputs=dense_dropout, units = self.n_classes,activation=tf.nn.relu, name = "logits_" + name)
+		
+		cost = tf.losses.sparse_softmax_cross_entropy(labels=self.out[:,pos], logits=logits) + tf.losses.get_regularization_loss()
+		self.cost_fns[name] = cost
+		self.logits[name] = logits
+		return cost
 	
 	# Define opt functions
-	# def opt(self):
-	# 	self.cost = tf.losses.sparse_softmax_cross_entropy(labels=self.out, logits=self.logits) + tf.losses.get_regularization_loss()
-	# 	update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-	# 	with tf.control_dependencies(update_ops):
-	# 		self.optimiser = tf.train.AdamOptimizer( self.learning_rate ).minimize( self.cost )
+	def opt(self):
+		self.total_cost = 0
+		for k,v in self.cost_fns.items():
+			self.total_cost = self.total_cost + v
+		update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+		with tf.control_dependencies(update_ops):
+			self.optimiser = tf.train.AdamOptimizer( self.learning_rate ).minimize( self.total_cost )
