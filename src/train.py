@@ -13,16 +13,14 @@ import pandas as pd
 import models
 import fns
 
-# model = "vec_"
-model= ""
 print("### Setup ###")
 
 imgs_folder = "../imgs/aug_imgs/"
-# labels = np.loadtxt( "../imgs/aug_imgs/aug_"+model+"labels.dat").astype(np.int32)
 vec_labels = np.asarray(np.loadtxt( "../imgs/aug_imgs/aug_vec_labels.dat").astype(np.int32))
 
-# colour, count, shape, fill
+# colour, count, fill, shape
 n_data = len(vec_labels)
+# n_data = 1000
 print("Loading " + str( n_data ) + " images: "),
 
 imgs = []
@@ -37,7 +35,7 @@ for i in range(n_data):
 	
 print(im.shape)
 print("Done.")
-# random.seed(0)
+
 imgs = np.asarray(imgs)
 n = len( imgs )
 img_train, img_test, class_train, class_test = sk.train_test_split( imgs[:n], vec_labels[:n], test_size = 0.1, shuffle = True )
@@ -49,76 +47,18 @@ class_test = class_test
 
 hyperpars = {
 'drop_rate' : 0.4,
-'learning_rate' : 0.01
+'learning_rate' : 0.0001,
+'dense_size' : 64,
+"conv_filters" : [16,32],
+'batch_size' : 512,
+"epochs" : 25
 }
 
-epochs = 5
-test = models.CNN_multi(im.shape, 3, hyperpars, name = "test")
-test.build_branch(64,[16,32],'colour')
-test.build_branch(128,[16,32],'counts')
-test.build_branch(512,[16,32],'fill')
-test.build_branch(512,[16,32],'shape')
-test.opt()
-
-init_op = tf.global_variables_initializer()
-local_op = tf.local_variables_initializer()
-config = tf.ConfigProto( allow_soft_placement = True)
-batches = fns.make_batches(img_train, class_train, 50)
-print len(class_train)
-exit(0)
-saver = tf.train.Saver()
-with tf.Session(config = config) as sess:
-	sess.run([init_op,local_op])
-	for epoch in range(1, epochs):
-		for batch in batches:
-
-			batch_summary = {}			
-			_,c = sess.run( [ test.optimiser, test.total_cost ], feed_dict={ test.inp: batch[0], test.out: batch[1], test.training: True} )
-			print c
-
-			
-			for branch, output in test.logits.items():
-				batch_train_predict = np.argmax(sess.run(output, feed_dict={test.inp: batch[0], test.training: True }), axis = 1)
-				# print batch_train_predict
-				# exit(0)
-				batch_train_acc = fns.my_acc(batch_train_predict, batch[1][:,test.pos[branch]])
-				print batch_train_predict
-				print batch[1][:,test.pos[branch]]
-				exit(0)
-
-				# print(batch_train_acc)
-				# exit(0)
-				batch_summary[branch] = [batch_train_acc]
-			print pd.DataFrame.from_dict(batch_summary)
-			# batch_train_predict =  np.argmax(sess.run(test.logits['colour'], feed_dict={test.inp: batch[0], test.training: True }), axis = 1)
-			# test_predict =  np.argmax(sess.run(test.logits, feed_dict={test.inp: test_inp, test.training: False}), axis = 1)
-
-		
-			  
-		# 	batch_train_acc = fns.my_acc(batch_train_predict, batch[1])
-		# 	test_acc = fns.my_acc(test_predict,test_out)
-		
-		# 	summary = sess.run(merged , feed_dict={ test.inp: batch[0], test.out: batch[1], test.training: True, myVar_tf : batch_train_acc })
-		# 	writer.add_summary(summary, step)
-		# 	log = np.concatenate((log,[[epoch, step, c, batch_train_acc, test_acc]]), axis = 0)
-
-		# 	if step % 10 == 0:
-		# 		print(epoch,step,c, round( batch_train_acc, 2),  round( test_acc, 2)  )
-			
-		# 	cost_history.append( c )
-		# 	if fns.is_converged(cost_history, 100, 0.05) :
-		# 		converged = True
-		# 		break
-		# 	step += 1
-		# if converged:
-		# 	break	
-	save_path = saver.save(sess, "../models/multi_branch/multi_branch.ckpt")
-tf.reset_default_graph()
-# pos = 0
-# cnn = models.CNN(im.shape, 3, hyperpars, name = "colour")
-# cnn.build_layers()
-# models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
-# del cnn
+pos = 0
+cnn = models.CNN(im.shape, 3, hyperpars, name = "colour")
+cnn.build_layers()
+models.fit_model(cnn, [img_train,class_train[:,pos], img_test, class_test[:,pos]])
+del cnn
 
 # exit(0)
 # hyperpars['dense_size'] = 128

@@ -129,9 +129,11 @@ def fit_model( model, data, **kwargs ):
 		batch_size = model.batch_size
 		epochs = model.epochs
 	except:
+		# problem here is we should really have two try/catch, one for each hyper par otherwise we lose info
 		print("\nWARNING: Model " + model.name + " lacks appropriate hyper parameters, resorting test-case defaults\n")
 		batch_size = int(round(0.05*len(train_inp)))
 		epochs = 10
+
 	
 	converged = False
 	batches = fns.make_batches(train_inp, train_out, batch_size)
