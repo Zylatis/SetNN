@@ -21,14 +21,11 @@ def yield_files():
 			im = np.asarray(Image.open( imgs_folder + "processed/"+str(i) )).astype(np.uint8)
 			yield [im, list(map(str.strip,(i[:-4]).split('_')[2:6])),i ]
 
-
-
 original_files = yield_files()
 colour = ['red', 'purple', 'green']
 count = ['single','double', 'triple']
 shape = ['pill', 'diamond', 'squiggle']
 fill = ['empty', 'grid', 'solid']
-
 
 model_name = 'colour'
 v = colour
@@ -63,6 +60,5 @@ with tf.Session() as sess:
 		im_show.save( imgs_folder + "/check_original/" + str(n) + ".png")
 		
 		n+=1
-
 
 print( acc/(1.*n))

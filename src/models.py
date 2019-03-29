@@ -191,11 +191,14 @@ class CNN_multi:
 		self.pos = {"colour" : 0, "counts" : 1, "fill" : 2, "shape" : 3}
 
 		print("Setup model: "),
-	
+		self.total_cost = 0
 		self.inp = tf.placeholder(tf.float32, self.inp_shape, name = "input")
-		self.out = tf.placeholder(tf.int32, [None,4], name = "output")
+		self.out = tf.placeholder(tf.int32, [None,len(self.pos)], name = "output")
 		
 		self.training = tf.placeholder(tf.bool, name = "training")
+
+		tf.summary.scalar('cost', self.total_cost)
+
 		# Merge kwargs and hyperpars into a temporary dict to make object variables
 		# (this may not be ideal down the line, though nothing is truly private in python anyway soooo...)
 		local_defs = copy.deepcopy(hyperpars)
@@ -241,21 +244,22 @@ class CNN_multi:
 		layer1 = self.build_conv_section( self.inp, conv_filters[0], [5,5], tf.nn.relu, reg)
 		layer2 = self.build_conv_section( layer1, conv_filters[1], [5,5], tf.nn.relu, reg)
 
-		flat =tf.reshape(layer2, [-1, int(self.x_dim/4) * int(self.y_dim/4) * conv_filters[1]])
+		flat = tf.reshape(layer2, [-1, int(self.x_dim/4) * int(self.y_dim/4) * conv_filters[1]])
 		dense = tf.layers.dense(inputs=flat, units=dense_size, activation=tf.nn.relu, kernel_regularizer=tf.contrib.layers.l1_regularizer( reg ))
 		dense_dropout = tf.layers.dropout( inputs=dense, rate=self.drop_rate )
-		logits = tf.layers.dense(inputs=dense_dropout, units = self.n_classes,activation=tf.nn.relu, name = "logits_" + name)
+		branch_logits = tf.layers.dense(inputs=dense_dropout, units = self.n_classes, activation=tf.nn.relu, name = "logits_" + name)
 		
-		cost = tf.losses.sparse_softmax_cross_entropy(labels=self.out[:,pos], logits=logits) + tf.losses.get_regularization_loss()
+		cost = tf.losses.sparse_softmax_cross_entropy(labels=self.out[:,pos], logits=branch_logits )
 		self.cost_fns[name] = cost
-		self.logits[name] = logits
+		self.logits[name] = branch_logits
 		return cost
 	
 	# Define opt functions
 	def opt(self):
-		self.total_cost = 0
+		
 		for k,v in self.cost_fns.items():
 			self.total_cost = self.total_cost + v
+		self.total_cost +=  tf.losses.get_regularization_loss()
 		update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 		with tf.control_dependencies(update_ops):
 			self.optimiser = tf.train.AdamOptimizer( self.learning_rate ).minimize( self.total_cost )
