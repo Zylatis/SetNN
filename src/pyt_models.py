@@ -32,8 +32,7 @@ class MyDataset(Dataset):
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 # Hyper parameters
-num_epochs = 5
-num_classes = 10
+num_epochs = 50
 batch_size = 100
 learning_rate = 0.001
 
@@ -118,7 +117,7 @@ class ConvNet(nn.Module):
 			nn.ReLU(),
 			nn.MaxPool2d(kernel_size=2, stride=2))
 
-		fc = nn.Linear(int(self.dims[0]/4*self.dims[1]/4*self.filters[1]), 1) # each branch only gives one class
+		fc = nn.Linear(int(self.dims[0]/4*self.dims[1]/4*self.filters[1]), 4) # each branch only gives one class
 
 		# Rather than storing things in lists we assign to the class with the nice add_module fn
 		# so it picks up the parameter sets 
@@ -135,36 +134,40 @@ class ConvNet(nn.Module):
 			out = layers[f"{k}_layer2"](out)
 			out = out.reshape(out.size(0), -1)
 			out = layers[f"{k}_fc"](out)
-			output_set[i] = out 
+			output_set[self.pos[k]] = out 
 		return output_set
 
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+model = ConvNet(im.shape,[5,5],[5,5]).to(device)
 
-model = ConvNet(im.shape,[5,5],[16,32]).to(device)
-# print()
-# model.myparameters = nn.ParameterList(self.w, self.out_w1, self.out_b1, self.out_w2, self.out_b2)
-# for i in model.parameters():
-	# print(i)
-# exit(0)
+
+print(count_parameters(model))
 # Loss and optimizer
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-print(img_train[0].shape)
+
 # Train the model
 for epoch in range(num_epochs):
 	for i, (images, labels) in enumerate(loader):
 		images = images.to(device)
 		labels = labels.to(device)
 		
-		
 		# Forward pass
 		outputs = model(images)
-		print(outputs[0])
-		# loss = criterion(outputs, labels)
 		
+		loss = criterion(outputs[0], labels[:,0]) 
+		# for i in range(1,4):
+			# loss +=  criterion(outputs[i], labels[:,i])  
+		# print(outputs[1])
+		# exit(0)
 		# # Backward and optimize
-		# optimizer.zero_grad()
-		# loss.backward()
-		# optimizer.step()
+		optimizer.zero_grad()
+		loss.backward()
+		optimizer.step()
 		
-		exit(0)
+		# exit(0)
+		print(loss.item())
+		print(outputs[0][0])
+		print(labels[0])
