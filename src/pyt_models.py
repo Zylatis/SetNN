@@ -95,10 +95,16 @@ class ConvNet(nn.Module):
 		self.kernels=kernels
 		self.filters = filters
 		
-		self.layers = [0,0,0,0]
+		# self.layers = [0,0,0,0]
 		self.pos = {"colour" : 0, "counts" : 1, "fill" : 2, "shape" : 3}
 
-		
+		self.branch("colour")
+		self.branch("counts")
+		self.branch("fill")
+		self.branch("shape")
+
+		# self.myparameters = nn.ParameterList(self.layers[0][0])
+
 	def branch(self, name):
 		layer1 = nn.Sequential(
 			nn.Conv2d(self.dims[2], self.filters[0], kernel_size=self.kernels[0], stride=1, padding=2),
@@ -113,30 +119,35 @@ class ConvNet(nn.Module):
 			nn.MaxPool2d(kernel_size=2, stride=2))
 
 		fc = nn.Linear(int(self.dims[0]/4*self.dims[1]/4*self.filters[1]), 1) # each branch only gives one class
-		self.layers[self.pos[name]] = [layer1,layer2,fc]
+
+		# Rather than storing things in lists we assign to the class with the nice add_module fn
+		# so it picks up the parameter sets 
+		self.add_module(f"{name}_layer1", layer1)
+		self.add_module(f"{name}_layer2", layer2)
+		self.add_module(f"{name}_fc", fc)
 
 	def forward(self, x):
 		output_set = [-1,-1,-1,-1]
-		
-		for i in range(len(self.layers)):
-			out = self.layers[i][0](x)
-			out = self.layers[i][1](out)
+		layers = model._modules
+		for k in self.pos.keys():
+
+			out = layers[f"{k}_layer1"](x)
+			out = layers[f"{k}_layer2"](out)
 			out = out.reshape(out.size(0), -1)
-			out = self.layers[i][2](out)
+			out = layers[f"{k}_fc"](out)
 			output_set[i] = out 
 		return output_set
 
 
 model = ConvNet(im.shape,[5,5],[16,32]).to(device)
-model.branch("colour")
-model.branch("counts")
-model.branch("fill")
-model.branch("shape")
-
+# print()
+# model.myparameters = nn.ParameterList(self.w, self.out_w1, self.out_b1, self.out_w2, self.out_b2)
+# for i in model.parameters():
+	# print(i)
 # exit(0)
 # Loss and optimizer
-# criterion = nn.CrossEntropyLoss()
-# optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+criterion = nn.CrossEntropyLoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
 print(img_train[0].shape)
 # Train the model
