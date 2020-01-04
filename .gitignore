@@ -7,3 +7,5 @@ src/__pycache__
 imgs/*tar.gz
 imgs/archive
 src/tensorboards
+models/*
+!models/.gitkeep
