@@ -1,12 +1,12 @@
 import numpy as np 
 import itertools
-	
-def get_labels():	
-	colours = ['red', 'purple', 'green']
-	counts = ['single','double', 'triple']
-	shape = ['pill', 'diamond', 'squiggle']
-	fill = ['empty', 'grid', 'solid']
 
+colours = ['red', 'purple', 'green']
+counts = ['single','double', 'triple']
+fill = ['empty', 'grid', 'solid']
+shape = ['pill', 'diamond', 'squiggle']
+
+def get_labels():	
 
 	features = [colours,counts, fill,shape]
 	all_labels = list(itertools.product(*features))

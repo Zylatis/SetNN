@@ -102,7 +102,7 @@ for epoch in range(num_epochs):
 	
 	print(epoch+1, loss.item())
 
-torch.save(model, 'pyt_models/model.ckpt')
+torch.save(model, '../models/model.ckpt')
 loaders = {'Train' : train_loader,'Test':test_loader}
 
 for k,loader in loaders.items():
