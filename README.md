@@ -11,7 +11,7 @@ A brief rundown of what I want to build into this
 - [x] Basic CNN model in TensorFlow (deprecated on its own branch now; I made a dogs breakfast of the git history there too, totes soz intrepid reader)
 - [x] Basiscally the same CNN model in Pytorch (current version)
 - [x] Basic image registration using countour detection from OpenCV2 (thanks to [here](https://arnab.org/blog/so-i-suck-24-automating-card-games-using-opencv-and-python) for code snippets and ideas)
-- [] Connect all the bits into a real pipeline which can be run in real time
-- [] Experiment with reducing the number of branches in the CNN by doing colour extraction based on pixel ratios (might be better, might be worse, not sure)
-- [] Flask plugin/API
-- [] Mobile app
+- [ ] Connect all the bits into a real pipeline which can be run in real time
+- [ ] Experiment with reducing the number of branches in the CNN by doing colour extraction based on pixel ratios (might be better, might be worse, not sure)
+- [ ] Flask plugin/API
+- [ ] Mobile app
