@@ -6,7 +6,8 @@ import copy
 # file = "setgame1.jpg"
 # file = "set-game-5-360x240.jpg"
 # file = "SetCards2.jpg"
-file = "setgame11small.jpg"
+# file = "setgame11small.jpg"
+file = "hand.png"
 # file = "687474703a2f2f6935382e74696e797069632e636f6d2f326e31726763392e706e67.png"
 # file = "set_solid.png"	
 im = cv2.imread( f"../imgs/raw/{file}")

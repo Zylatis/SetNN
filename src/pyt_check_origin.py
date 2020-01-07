@@ -20,7 +20,7 @@ def yield_files():
 			im = np.asarray(Image.open( imgs_folder + "processed/"+str(i) )).astype(np.uint8)
 			yield [im, list(map(str.strip,(i[:-4]).split('_')[2:6])),i ]
 
-model = torch.load('../models/model.ckpt')
+model = torch.load('../models/model.ckpt', device)
 # print(model)
 label_lookup = get_labels()[1]
 original_files = yield_files()
