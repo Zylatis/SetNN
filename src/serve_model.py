@@ -8,59 +8,54 @@ from pyt_models import ConvNet, MyDataset
 from classes import get_labels, colours, counts, shape, fill
 import os
 
-
-imgs_folder = "../imgs/"
-# Device configuration
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-def yield_files():
+def yield_labeled_files(imgs_folder):
 	for i in os.listdir( imgs_folder + "processed/"):
 		if i.endswith('.png'):
-			# label =  ("_").join(  (i[:-4]).split('_')[2:6] ).strip()
 			im = np.asarray(Image.open( imgs_folder + "processed/"+str(i) )).astype(np.uint8)
 			yield [im, list(map(str.strip,(i[:-4]).split('_')[2:6])),i ]
 
+def yield_files(imgs_folder):
+	for i in os.listdir( imgs_folder + "processed/"):
+		if i.endswith('.png'):
+			im = np.asarray(Image.open( imgs_folder + "processed/"+str(i) )).astype(np.uint8)
+			yield im
+
+def load_data(imgs_folder, has_labels = False, shuffle = False):
+
+	imgs = []
+	for el in yield_files(imgs_folder):
+		imgs.append(el)
+
+	imgs = np.array(imgs)
+	imgs = np.moveaxis(imgs, 3, 1) # assumptions here
+	
+	dataset = MyDataset(imgs, np.array([0,0,0,0]*len(imgs)))
+	data_loader = DataLoader(
+		dataset,
+		batch_size=len(imgs),
+		shuffle=shuffle,
+		num_workers=4,
+		pin_memory=torch.cuda.is_available()
+	)
+	return data_loader
+	
+
 model = torch.load('../models/model.ckpt', device)
-# print(model)
-label_lookup = get_labels()[1]
-original_files = yield_files()
-imgs = []
-labels = []
-labels_str = {}
-
-for el in original_files:
-	imgs.append(el[0])
-	label = [
-		colours.index(el[1][0]),
-		counts.index(el[1][1]),
-		fill.index(el[1][2]),
-		shape.index(el[1][3])	
-	]
-
-	labels.append(label)
-
-imgs = np.array(imgs)
-imgs = np.moveaxis(imgs, 3, 1)
-
-labels = np.array(labels)
-print(labels)
-dataset = MyDataset(imgs, labels)
-data_loader = DataLoader(
-	dataset,
-	batch_size=len(imgs),
-	shuffle=True,
-	num_workers=4,
-	pin_memory=torch.cuda.is_available()
-)
-loaders = {'Originals':data_loader}
+loaders = {}
+loaders['original'] = load_data("../imgs/")
+# exit(0)
 n=0
-
 for k,loader in loaders.items():
+
 	with torch.no_grad():
 		correct = np.zeros(4)
 		total = np.zeros(4)
 		for images, labels in loader:
+
 			images = images.to(device)
+
 			# labels = labels.to(device)
 			outputs = model(images)
 			temp = []
@@ -69,13 +64,13 @@ for k,loader in loaders.items():
 			for i in range(4):
 				_, predicted = torch.max(outputs[i], 1)
 				temp.append(predicted.tolist())
-				total[i] += labels.size(0)
-				correct[i] += (predicted == labels[:,i]).sum().item()
-				tt = (predicted == labels[:,i]).numpy()
+				# total[i] += labels.size(0)
+				# correct[i] += (predicted == labels[:,i]).sum().item()
+				# tt = (predicted == labels[:,i]).numpy()
 				# wrong.append(np.where(tt == False)[0])
-				wrong = np.append(wrong,np.where(tt == False)[0])
+				# wrong = np.append(wrong,np.where(tt == False)[0])
 				# exit(0)
-			print(wrong.flatten())
+			# print(wrong.flatten())
 			temp = np.array(temp).transpose()
 
 			for el in temp:
@@ -88,13 +83,13 @@ for k,loader in loaders.items():
 
 				draw = ImageDraw.Draw(im_show)
 				draw.text((0, 0),  predicted_str[i] ,(0,0,0))
-				im_show.save( imgs_folder + "/check_original/" + str(n) + ".png")
+				im_show.save( "../imgs/" + "/check_original/" + str(n) + ".png")
 
 				n+=1
 				# exit(0)
 
-		print(f'{k} accuracy:')
-		for i in range(4):
-			print(round(100.*correct[i]/total[i],2))
+		# print(f'{k} accuracy:')
+		# for i in range(4):
+		# 	print(round(100.*correct[i]/total[i],2))
 
 

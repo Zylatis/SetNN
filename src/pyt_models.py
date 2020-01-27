@@ -1,11 +1,6 @@
 import torch 
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
-import torchvision
-import torchvision.transforms as transforms
-import numpy as np
-from PIL import Image # gives better output control than matplotlib
-import sklearn.model_selection as sk
 
 class MyDataset(Dataset):
 	def __init__(self, data, target, transform=None):
