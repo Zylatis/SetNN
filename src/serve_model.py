@@ -42,37 +42,26 @@ def load_data(imgs_folder, has_labels = False, shuffle = False):
 	return data_loader
 	
 
-model = torch.load('../models/model.ckpt', device)
+model = torch.load('../models/model.ckpt', device)#.eval()
+model.eval()
+# print(model)
 loaders = {}
 loaders['original'] = load_data("../imgs/")
-# exit(0)
+
 n=0
 for k,loader in loaders.items():
-
 	with torch.no_grad():
-		correct = np.zeros(4)
-		total = np.zeros(4)
 		for images, labels in loader:
 
 			images = images.to(device)
-
-			# labels = labels.to(device)
 			outputs = model(images)
 			temp = []
-			predicted_str = []
-			wrong = np.array([])
 			for i in range(4):
 				_, predicted = torch.max(outputs[i], 1)
 				temp.append(predicted.tolist())
-				# total[i] += labels.size(0)
-				# correct[i] += (predicted == labels[:,i]).sum().item()
-				# tt = (predicted == labels[:,i]).numpy()
-				# wrong.append(np.where(tt == False)[0])
-				# wrong = np.append(wrong,np.where(tt == False)[0])
-				# exit(0)
-			# print(wrong.flatten())
+				
 			temp = np.array(temp).transpose()
-
+			predicted_str = []
 			for el in temp:
 				predicted_str.append("-".join([colours[el[0]],counts[el[1]],fill[el[2]],shape[el[3]]] ))
 			

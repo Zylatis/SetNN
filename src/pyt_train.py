@@ -22,7 +22,6 @@ model= ""
 print("### Setup ###")
 
 imgs_folder = "../imgs/aug_imgs/"
-# labels = np.loadtxt( "../imgs/aug_imgs/aug_"+model+"labels.dat").astype(np.int32)
 vec_labels = np.asarray(np.loadtxt( "../imgs/aug_imgs/aug_vec_labels.dat").astype(np.int32))
 
 # colour, count, shape, fill
@@ -75,6 +74,7 @@ test_loader = DataLoader(
 
 
 model = ConvNet(im.shape,[5,5],[5,5]).to(device)
+model.train()
 
 print(count_parameters(model))
 # Loss and optimizer
