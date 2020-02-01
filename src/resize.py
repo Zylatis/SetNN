@@ -1,50 +1,27 @@
 import numpy as np
 import os
-from scipy.misc import imresize
-from skimage.measure import block_reduce
-imgs_folder = "../imgs/"
 from PIL import Image # gives better output control than matplotlib
 
-
-# Shamelessly pinched but I get it anyway
-def crop_center(img,cropx,cropy):
-	y,x,c = img.shape
-	startx = x/2 - cropx/2
-	starty = y/2 - cropy/2    
-	return img[ starty:starty + cropy, startx:startx + cropx, :]
-
-
+imgs_folder = "../imgs/"
 imgs = []
-target_x = 128
-target_y = 128
+target_x, target_y = 128, 128
 count = 0
-labels = []
 for i in os.listdir( imgs_folder + "isolated/"):
 	if i.endswith('.png'):
 
-		im = np.asarray(Image.open( imgs_folder + "isolated/"+str(i) ))
-		imgs.append(im)
-		x,y,z = im.shape
-		aspect = y/(1.*x)
-		pad_x = 0
-		pad_y = 0
-		remainder_x = 0
-		remainder_y = 0
-		if x > y:
-			new_size = (target_x,int(target_y*aspect))
-			pad_y = int((target_y-new_size[1])/2.)
-			remainder_y = target_y - (2*pad_y + new_size[1])
-		else:
-			new_size =  (int(target_x/aspect),target_y)
-			pad_x = int((target_x-new_size[0])/2.)
-			remainder_x = target_x - (2*pad_x + new_size[0])
+		im = Image.open( imgs_folder + "isolated/"+str(i) )
+
+		desired_size = 128
+		old_size = im.size  # old_size[0] is in (width, height) format
+
+		ratio = float(desired_size)/max(old_size)
+		new_size = tuple([int(x*ratio) for x in old_size])
 	
-
-		new_im = imresize(im, size = new_size)
-		new_im = np.pad(new_im, pad_width = ((pad_x + remainder_x,pad_x),(pad_y+remainder_y,pad_y),(0,0)), mode = 'constant', constant_values = (255,255)) #
+		im = im.resize(new_size, Image.ANTIALIAS)
+	
+		new_im = Image.new("RGB", (desired_size, desired_size))
+		new_im.paste(im, ((desired_size-new_size[0])//2,
+		                    (desired_size-new_size[1])//2))
 		
-
-
-		im = Image.fromarray(new_im)
-		im.save(imgs_folder + "processed/proc_img_ "+ str(i) )
+		new_im.save(imgs_folder + "processed/proc_img_ "+ str(i) )
 		count = count + 1
