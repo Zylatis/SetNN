@@ -1,10 +1,12 @@
 import numpy as np 
 import itertools
 
-colours = ['red', 'purple', 'green']
-counts = ['single','double', 'triple']
-fill = ['empty', 'grid', 'solid']
-shape = ['pill', 'diamond', 'squiggle']
+class_labels = {
+	'colours':['red', 'purple', 'green'],
+	'counts': ['single','double', 'triple'],
+	'fill' : ['empty', 'grid', 'solid'],
+	'shape' : ['pill', 'diamond', 'squiggle']
+}
 
 def get_labels():	
 
@@ -21,10 +23,10 @@ def get_labels():
 		# inverse_class_map[i] = concat
 	
 		class_vec_map[concat] =  [
-			colours.index(label[0]),
-			counts.index(label[1]),
-			fill.index(label[2]),
-			shape.index(label[3])
+			class_labels['colours'].index(label[0]),
+			class_labels['counts'].index(label[1]),
+			class_labels['fill'].index(label[2]),
+			class_labels['shape'].index(label[3])
 		]
 		i = i+1
 

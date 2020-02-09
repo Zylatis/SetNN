@@ -4,7 +4,7 @@ import pandas as pd
 import copy
 
 def register_cards(file, dump_registered = False):
-	im = cv2.imread( f"../imgs/raw/{file}")
+	im = cv2.imread( file)
 	im = cv2.resize(im,(500,500),interpolation = cv2.INTER_AREA)
 	gray = cv2.cvtColor(im,cv2.COLOR_BGR2GRAY)
 	overlay_im = copy.deepcopy(im)
@@ -77,4 +77,4 @@ if __name__ == '__main__':
 			"687474703a2f2f6935382e74696e797069632e636f6d2f326e31726763392e706e67.png",
 			"set_solid.png"	
 		]
-	register_cards(files[1])
+	register_cards(f"../imgs/raw/{files[1]}")

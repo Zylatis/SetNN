@@ -21,12 +21,12 @@ class MyDataset(Dataset):
 		return len(self.data)
 
 
-# Convolutional neural network (two convolutional layers)
+# CNN (two convolutional layers)
 class ConvNet(nn.Module):
-	def __init__(self,dims, kernels, filters):
+	def __init__(self,dims, filters, kernel_sizes):
 		super(ConvNet, self).__init__()
 		self.dims = dims
-		self.kernels=kernels
+		self.kernel_sizes = kernel_sizes
 		self.filters = filters
 		
 		self.pos = {"colour" : 0, "counts" : 1, "fill" : 2, "shape" : 3}
@@ -38,24 +38,25 @@ class ConvNet(nn.Module):
 
 	def branch(self, name):
 		layer1 = nn.Sequential(
-			nn.Conv2d(self.dims[2], self.filters[0], kernel_size=self.kernels[0], stride=1, padding=2),
-			# nn.BatchNorm2d(self.filters[0]),
+			nn.Conv2d(self.dims[2], self.filters[0], kernel_size=self.kernel_sizes[0], stride=1, padding=2),
+			nn.BatchNorm2d(self.filters[0]),
 			nn.ReLU(),
 			nn.MaxPool2d(kernel_size=2, stride=2))
 
 		layer2 = nn.Sequential(
-			nn.Conv2d(self.filters[0], self.filters[1], kernel_size=self.kernels[1], stride=1, padding=2),
-			# nn.BatchNorm2d(self.filters[1]),
+			nn.Conv2d(self.filters[0], self.filters[1], kernel_size=self.kernel_sizes[1], stride=1, padding=2),
+			nn.BatchNorm2d(self.filters[1]),
 			nn.ReLU(),
 			nn.MaxPool2d(kernel_size=2, stride=2))
 
 		fc = nn.Linear(int(self.dims[0]/4*self.dims[1]/4*self.filters[1]), 4) # each branch only gives one class
+	
 		# Rather than storing things in lists we assign to the class with the nice add_module fn
 		# so it picks up the parameter sets 
 		self.add_module(f"{name}_layer1", layer1)
 		self.add_module(f"{name}_layer2", layer2)
 		self.add_module(f"{name}_fc", fc)
-
+	
 	def forward(self, x):
 		output_set = [-1,-1,-1,-1]
 		layers = self	._modules

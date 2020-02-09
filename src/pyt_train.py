@@ -26,6 +26,7 @@ vec_labels = np.asarray(np.loadtxt( "../imgs/aug_imgs/aug_vec_labels.dat").astyp
 
 # colour, count, shape, fill
 n_data = len(vec_labels)
+n_data = 100
 print("Loading " + str( n_data ) + " images: "),
 
 imgs = []
@@ -44,7 +45,7 @@ imgs = np.asarray(imgs)
 
 # Here we move the channel index around to match the pytorch requirement
 imgs = np.moveaxis(imgs, 3, 1)
-n_use = 2500
+n_use = 100
 print(f"Using {n_use} randomly chosen imgs")
 ids = np.random.choice(n_data,size=n_use,replace=False)
 img_train, img_test, class_train, class_test = sk.train_test_split( imgs[ids], vec_labels[ids], test_size = 0.1, shuffle = True )
@@ -57,7 +58,7 @@ class_test = class_test
 train_dataset = MyDataset(img_train, class_train)
 train_loader = DataLoader(
 	train_dataset,
-	batch_size=50,
+	batch_size=150,
 	shuffle=True,
 	num_workers=4,
 	pin_memory=torch.cuda.is_available()
@@ -73,8 +74,9 @@ test_loader = DataLoader(
 )
 
 
-model = ConvNet(im.shape,[5,5],[5,5]).to(device)
+model = ConvNet(im.shape,[10,5],[5,5]).to(device)
 model.train()
+print(model)
 
 print(count_parameters(model))
 # Loss and optimizer
