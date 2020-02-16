@@ -74,7 +74,7 @@ test_loader = DataLoader(
 )
 
 
-model = ConvNet(im.shape,[10,5],[5,5]).to(device)
+model = ConvNet(im.shape,[5,5],[5,5]).to(device)
 model.train()
 print(model)
 
