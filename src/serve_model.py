@@ -114,8 +114,8 @@ def check_batch(img_folder, model, has_labels = False):
 			label_images(images, labels, model, f"{img_folder}labeled/")
 			
 def check_frame(path, model, labels = []):
-	cards = register_cards(path)
-
+	cards = register_cards(path, dump_registered=True)
+	# print(cards)
 	for card in cards:
 		card = np.moveaxis(card, 2, 0)
 		t = torch.from_numpy(card).unsqueeze(0).float()
@@ -127,12 +127,20 @@ def check_frame(path, model, labels = []):
 			
 		temp = np.array(temp).transpose()
 		print(temp)
-		exit(0)
-	model(im)
+		# exit(0)
+	# model(im)
 
 model = torch.load('../models/model.ckpt', device)
 model.eval()
 
 
-check_batch("../imgs/processed/", model, True)
+# check_batch("../imgs/processed/", model, True)
 # check_frame("../imgs/raw/img_1963-e1371071035156.jpg",model)
+# check_frame("../imgs/raw/TTMDE.jpg",model)
+
+# check_frame("../imgs/raw/687474703a2f2f6935382e74696e797069632e636f6d2f326e31726763392e706e67.png",model)
+
+for i in os.listdir( "../imgs/raw/" ):
+	# print(i)
+	check_frame(f"../imgs/raw/{i}",model)
+	# exit(0)

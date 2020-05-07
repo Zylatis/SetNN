@@ -54,6 +54,7 @@ class ConvNet(nn.Module):
 			nn.BatchNorm2d(self.filters[0]),
 			nn.ReLU(),
 			nn.MaxPool2d(kernel_size=2, stride=2))
+		
 		layer2 = nn.Sequential(
 			nn.Conv2d(self.filters[0], self.filters[1], kernel_size=self.kernel_sizes[1], stride=1, padding=2),
 			nn.BatchNorm2d(self.filters[1]),
