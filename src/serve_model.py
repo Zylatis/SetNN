@@ -91,7 +91,7 @@ def label_images(images, labels, model, dump_folder = None):
 		]))
 	
 	for i in range(len(images)):
-		print(i)
+		# print(i)
 		im = images[i].numpy().astype(np.uint8)
 		im = np.moveaxis(im, 0, 2)
 		im_show = Image.fromarray(im)
