@@ -12,11 +12,18 @@ MIN_CARD_ARE5A_FRAC = 0.01
 MAX_CARD_AREA_FRAC = 0.8
 WHITE_CUTOFF = 180  # should really be taking mean across each pixel
 
-def register_cards(file, dump_registered = False):
-	file_name = file.split("/")[-1].split(".")[0]
+def register_cards(image_file = None, image_array = None, dump_registered = False):
+	if image_file is not None:
+		file_name = image_file.split("/")[-1].split(".")[0]
+		im = cv2.imread( image_file )
 
-	im = cv2.imread( file)
+	elif image_array is not None:
+		im = Image.fromarray(np.uint8(image_array)).convert('RGB')
+
+	else:
+		raise ValueError("Must specify either an image path or numpy array in register_cards()")
 	im = cv2.resize(im,(500,500),interpolation = cv2.INTER_AREA)
+		
 	gray = cv2.cvtColor(im,cv2.COLOR_BGR2GRAY)
 	overlay_im = copy.deepcopy(im)
 	threshold_list = [20,80,120, 160,200,250]

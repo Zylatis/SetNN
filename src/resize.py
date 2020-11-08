@@ -19,14 +19,3 @@ def resize_img(im, target_size, save_path = None):
 		new_im.save( save_path )
 
 	return new_im
-
-if __name__ == "__main__":
-	imgs_folder = "../imgs/"
-	count = 0
-	for i in os.listdir( imgs_folder + "isolated/"):
-		if i.endswith('.png'):
-
-			im = Image.open( imgs_folder + "isolated/"+str(i) )
-			resize_img(im, 128, imgs_folder + "processed/proc_img_ "+ str(i))
-			count = count + 1
-

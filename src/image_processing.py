@@ -6,6 +6,10 @@ import classes
 import sys
 from imgaug import augmenters as iaa
 from PIL import Image # gives better output control than matplotlib
+# from tqdm import tqdm
+from tqdm.contrib.concurrent import process_map 
+from tqdm import tqdm
+from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 
 sometimes = lambda aug: iaa.Sometimes(0.5, aug)
 
@@ -28,14 +32,11 @@ def resize_img(im, target_size, save_path = None):
 	return new_im
 
 def yield_files(class_vec_map):
-	for i in os.listdir( imgs_folder + "processed/"):
+	for i in os.listdir("../data/train/raw_resized"):
 		if i.endswith('.png'):
-			label =  ("_").join(  (i[:-4]).split('_')[2:6] ).strip()
-			# class_val = class_map[label]
-			class_vec_val = class_vec_map[label]
-			# classes_seen.append(class_val)
-			im = np.asarray(Image.open( imgs_folder + "processed/"+str(i) )).astype(np.uint8)
-			yield [im, class_vec_val]
+			label =  "_".join(i[:-4].split("_")[:4])
+			im = np.asarray(Image.open(f"../data/train/raw_resized/{i}")).astype(np.uint8)
+			yield [im, class_vec_map[label]]
 
 # Define our sequence of augmentation steps that will be applied to every image
 # All augmenters with per_channel=0.5 will sample one value _per image_
@@ -82,61 +83,65 @@ seq = iaa.Sequential(
 	random_order=True
 )
 
+def augment_img(img, vec_label, n_replicates):
+
+	replicated_data = np.asarray([ img for i in range(n_replicates)])
+	images_aug = seq.augment_images( replicated_data )
+
+	# all_vec_labels = np.concatenate( (all_vec_labels, [vec_label]*n_replicates))
+	for i in range(n_replicates):
+		im = Image.fromarray(images_aug[i])
+		im.save( f"../data/train/augmented/{random.randint(0,100000000)}.png")
+		# count += 1
+
+	return [vec_label]*n_replicates
+
+def resize_training_images(train_folder, rezised_train_folder, target_size):
+	raw_files = os.listdir(train_folder)
+	for file in tqdm(raw_files):
+
+		im = Image.open( f"{train_folder}/{file}")
+		resize_img(im, target_size, f"{rezised_train_folder}/{file}")
+
+	return len(raw_files)
+
 if __name__ == '__main__':
 	# Map from free text to our class vectors (class_map is deprecate)
 	class_map, class_vec_map = classes.get_labels()
 
 	# Location where raw, isolated, labelled, training images are stored
-	imgs_folder = "../data/train_raw/" 
-
+	train_raw_folder = "../data/train/raw" 
+	train_resized_folder = "../data/train/raw_resized"
+	n_raw = resize_training_images(train_raw_folder, train_resized_folder, 128)
 	
-	exit(0)
 	n_replicates = 1
 	count = 0
-	img_generator = yield_files()
-	all_labels = np.asarray([])
+	img_generator = yield_files(class_vec_map)
+
 	all_vec_labels = np.empty(shape=(1,4))
 	total = n_raw*n_replicates
 
-
-
-	seenc = []
-	sc = 0
 	print("Augmenting images and saving")
-	for img, label, vec_label in img_generator:
 
-		if label in seenc:
-			sc += 1
-		else:
-			seenc.append(label)
+	executor = ThreadPoolExecutor(max_workers = 1)
+	ckpt = []
+	os.system("rm ../data/train/augmented/*")
+	for img, vec_label in img_generator:
+		ckpt.append(executor.submit(augment_img, img, vec_label, n_replicates))
 
-		sys.stdout.flush() 
-		replicated_data = np.asarray([ img for i in range(n_replicates)])
-		images_aug = seq.augment_images( replicated_data )
-		all_labels = np.concatenate( (all_labels, [label]*n_replicates))
+	wait(ckpt, return_when = ALL_COMPLETED)
+	r = [x.result() for x in ckpt]
+	print(r)
+	# 	replicated_data = np.asarray([ img for i in range(n_replicates)])
+	# 	images_aug = seq.augment_images( replicated_data )
 
-		all_vec_labels = np.concatenate( (all_vec_labels, [vec_label]*n_replicates))
+	# 	all_vec_labels = np.concatenate( (all_vec_labels, [vec_label]*n_replicates))
 
-		for i in range(n_replicates):
-			im = Image.fromarray(images_aug[i])
-			im.save( imgs_folder + "aug_imgs/" + str( count) +".png")
-			count += 1
-		perc = int(round(100.*count/(1.*total)))
-		print("\rProgress: " +str(perc) + "%"),
-
+	# 	for i in range(n_replicates):
+	# 		im = Image.fromarray(images_aug[i])
+	# 		im.save( f"../data/train/augmented/{count}.png")
+	# 		count += 1
+		
 	all_vec_labels =  np.delete(all_vec_labels,(0),axis = 0)
-
-	classes_seen = sorted(all_labels)
-	classes_seen = list(set(classes_seen))
-	n_seen = len(classes_seen)
-	restricted_map = {}
-
-	for i in range(n_seen):
-		restricted_map[int(classes_seen[i])] = i
-
-	print("\nActual number of classes represented in data: " + str(n_seen) )
-	all_labels = list(map(restricted_map.get,all_labels))
-
 	print("Saving labels")
-	np.savetxt("../imgs/aug_imgs/aug_labels.dat", all_labels, fmt = "%d")
 	np.savetxt("../imgs/aug_imgs/aug_vec_labels.dat", all_vec_labels, fmt = "%d")
