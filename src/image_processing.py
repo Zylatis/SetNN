@@ -4,12 +4,21 @@ import os
 import random
 import classes
 import sys
-from imgaug import augmenters as iaa
-from PIL import Image # gives better output control than matplotlib
-# from tqdm import tqdm
-from tqdm.contrib.concurrent import process_map 
+import time 
+import shutil
+import pandas as pd
 from tqdm import tqdm
-from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
+from PIL import Image # gives better output control than matplotlib
+from pprint import pprint 
+from imgaug import augmenters as iaa
+from tqdm.contrib.concurrent import process_map 
+from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED, ProcessPoolExecutor
+
+# TODO put in config/env vars
+RESIZED_LOC = "../data/train/raw_resized"
+AUG_LOC = "../data/train/augmented"
+RAW_LOC = "../data/train/raw"
+FILE_EXTS = ['.png']
 
 sometimes = lambda aug: iaa.Sometimes(0.5, aug)
 
@@ -31,12 +40,6 @@ def resize_img(im, target_size, save_path = None):
 
 	return new_im
 
-def yield_files(class_vec_map):
-	for i in os.listdir("../data/train/raw_resized"):
-		if i.endswith('.png'):
-			label =  "_".join(i[:-4].split("_")[:4])
-			im = np.asarray(Image.open(f"../data/train/raw_resized/{i}")).astype(np.uint8)
-			yield [im, class_vec_map[label]]
 
 # Define our sequence of augmentation steps that will be applied to every image
 # All augmenters with per_channel=0.5 will sample one value _per image_
@@ -73,7 +76,7 @@ seq = iaa.Sequential(
 				]),
 				iaa.Add((-10, 10), per_channel=0.1), # change brightness of images (by -10 to 10 of original value)
 	
-				iaa.ContrastNormalization((0.75, 1.)), # improve or worsen the contrast
+				#iaa.ContrastNormalization((0.75, 1.)), # improve or worsen the contrast
 				sometimes(iaa.ElasticTransformation(alpha=(0.5, 3.5), sigma=0.25)), # move pixels locally around (with random strengths)
 				sometimes(iaa.PerspectiveTransform(scale=(0.01, 0.1)))
 			],
@@ -83,65 +86,68 @@ seq = iaa.Sequential(
 	random_order=True
 )
 
-def augment_img(img, vec_label, n_replicates):
+def augment_img(inp):
+	img_filename, n_replicates, class_vec_map = inp
+	vec_label =  class_vec_map["_".join(img_filename[:-4].split("_")[:4])]
+	img = np.asarray(Image.open(f"{RESIZED_LOC}/{img_filename}")).astype(np.uint8)
 
 	replicated_data = np.asarray([ img for i in range(n_replicates)])
 	images_aug = seq.augment_images( replicated_data )
 
-	# all_vec_labels = np.concatenate( (all_vec_labels, [vec_label]*n_replicates))
+	filenames = []
 	for i in range(n_replicates):
 		im = Image.fromarray(images_aug[i])
-		im.save( f"../data/train/augmented/{random.randint(0,100000000)}.png")
-		# count += 1
-
-	return [vec_label]*n_replicates
+		im.save( f"../data/train/augmented/{img_filename}_{i}.png")
+		filenames.append(f"{img_filename}_{i}.png")
+	return list(zip(filenames,[vec_label]*n_replicates))
 
 def resize_training_images(train_folder, rezised_train_folder, target_size):
 	raw_files = os.listdir(train_folder)
+	print("Resizing training images prior to augmentation:")
 	for file in tqdm(raw_files):
-
 		im = Image.open( f"{train_folder}/{file}")
 		resize_img(im, target_size, f"{rezised_train_folder}/{file}")
 
 	return len(raw_files)
 
 if __name__ == '__main__':
+	print("="*100)
+	print("BEGIN")
+	print("="*100)	
 	# Map from free text to our class vectors (class_map is deprecate)
 	class_map, class_vec_map = classes.get_labels()
 
 	# Location where raw, isolated, labelled, training images are stored
-	train_raw_folder = "../data/train/raw" 
-	train_resized_folder = "../data/train/raw_resized"
-	n_raw = resize_training_images(train_raw_folder, train_resized_folder, 128)
-	
-	n_replicates = 1
-	count = 0
-	img_generator = yield_files(class_vec_map)
+	n_raw = resize_training_images(RAW_LOC, RESIZED_LOC, 128)
+	n_proc = 12
+	n_replicates = 50
 
 	all_vec_labels = np.empty(shape=(1,4))
 	total = n_raw*n_replicates
 
 	print("Augmenting images and saving")
 
-	executor = ThreadPoolExecutor(max_workers = 1)
-	ckpt = []
-	os.system("rm ../data/train/augmented/*")
-	for img, vec_label in img_generator:
-		ckpt.append(executor.submit(augment_img, img, vec_label, n_replicates))
+	file_list = os.listdir(RAW_LOC)
+	aug_file_names = list(range(total))
 
-	wait(ckpt, return_when = ALL_COMPLETED)
-	r = [x.result() for x in ckpt]
-	print(r)
-	# 	replicated_data = np.asarray([ img for i in range(n_replicates)])
-	# 	images_aug = seq.augment_images( replicated_data )
+	inputs = list(zip(file_list, [n_replicates]*n_raw, [class_vec_map]*n_raw))
+	try:
+		print("Flushing existing augmented files:")
+		shutil.rmtree(AUG_LOC)
+		os.mkdir(AUG_LOC)
+	except:
+		pass
+	
+	print(f"Beginning augmentation of {n_raw} images with {n_replicates} for total of {total}")
+	results = []
+	for result in process_map(augment_img, inputs, max_workers=n_proc, chunksize = 1):
+		for x in result:
+			results.append(list(x))
 
-	# 	all_vec_labels = np.concatenate( (all_vec_labels, [vec_label]*n_replicates))
-
-	# 	for i in range(n_replicates):
-	# 		im = Image.fromarray(images_aug[i])
-	# 		im.save( f"../data/train/augmented/{count}.png")
-	# 		count += 1
-		
-	all_vec_labels =  np.delete(all_vec_labels,(0),axis = 0)
 	print("Saving labels")
-	np.savetxt("../imgs/aug_imgs/aug_vec_labels.dat", all_vec_labels, fmt = "%d")
+	results = pd.DataFrame(results)
+	results.to_csv(f"{AUG_LOC}/aug_vec_labels.csv")
+
+	print("="*100)
+	print("COMPLETE")
+	print("="*100)
