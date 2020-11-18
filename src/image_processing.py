@@ -99,7 +99,9 @@ def augment_img(inp):
 		im = Image.fromarray(images_aug[i])
 		im.save( f"../data/train/augmented/{img_filename}_{i}.png")
 		filenames.append(f"{img_filename}_{i}.png")
-	return list(zip(filenames,[vec_label]*n_replicates))
+
+	# TODO: refactor this giant turd
+	return list(zip(filenames,[vec_label[0]]*n_replicates, [vec_label[1]]*n_replicates, [vec_label[2]]*n_replicates, [vec_label[3]]*n_replicates))
 
 def resize_training_images(train_folder, rezised_train_folder, target_size):
 	raw_files = os.listdir(train_folder)
@@ -114,6 +116,7 @@ if __name__ == '__main__':
 	print("="*100)
 	print("BEGIN")
 	print("="*100)	
+	
 	# Map from free text to our class vectors (class_map is deprecate)
 	class_map, class_vec_map = classes.get_labels()
 
@@ -136,6 +139,7 @@ if __name__ == '__main__':
 		shutil.rmtree(AUG_LOC)
 		os.mkdir(AUG_LOC)
 	except:
+		# Faster to try/except delete and create folders than delete individual files
 		pass
 	
 	print(f"Beginning augmentation of {n_raw} images with {n_replicates} for total of {total}")
@@ -146,7 +150,7 @@ if __name__ == '__main__':
 
 	print("Saving labels")
 	results = pd.DataFrame(results)
-	results.to_csv(f"{AUG_LOC}/aug_vec_labels.csv")
+	results.to_csv(f"{AUG_LOC}/aug_vec_labels.csv", index = False)
 
 	print("="*100)
 	print("COMPLETE")

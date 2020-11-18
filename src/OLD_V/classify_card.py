@@ -1,26 +1,20 @@
-import os
 import torch 
 import numpy as np
 from PIL import Image, ImageFont, ImageDraw 
 from classes import class_labels
 from resize import resize_img
-import time
 
 
 MODEL_INPUT_SIZE = 128
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-device = 'cpu'
 classes = class_labels
 
 def classify_card_array(card_array, model, shift_axes = True):
 	if shift_axes:
 		card_array = np.moveaxis(card_array, 2, 0)
 	
-	card_array = torch.from_numpy(card_array).unsqueeze(0).float().to(device)
-	
-	# st = time.time()
+	card_array = torch.from_numpy(card_array).unsqueeze(0).float()
 	outputs = model(card_array)
-	# print(time.time()-st)
 
 	# Pretty janky, could make a lot better but requires revisiting training code
 	card_classes = [torch.max(outputs[i], 1)[1].tolist()[0] for i in range(4)]
@@ -38,22 +32,5 @@ def classify_card_file(card_file, model, shift_axes = True):
 
 model = torch.load('../models/model.ckpt', device)
 model.eval()
-eval_folder = '../data/train/raw/'
-
-correct = 0
-n = 0
-for f in os.listdir(eval_folder):
-
-	if f.endswith('.png'):
-		n+=1
-		class_text = ' '.join(f.split(".png")[0].split("_")[:4])
-		r = classify_card_file(f'{eval_folder}{f}', model)
-		if r != class_text:
-			print(f)
-			print("-"*50)
-			print(correct/n)
-		else:
-			correct+=1
-print(correct/n)
-	
-		
+r = classify_card_file('green_double_empty_squiggle.png', model)
+print(r)
