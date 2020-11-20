@@ -10,6 +10,7 @@ from pyt_models import ConvNet, count_parameters, MyDataset
 import pandas as pd
 import os 
 from tqdm import tqdm
+import classes
 
 if __name__ == "__main__":
 	NORMALISE = False
@@ -21,7 +22,7 @@ if __name__ == "__main__":
 	print(device)
 
 	# Hyper parameters
-	num_epochs = 30
+	num_epochs = 20
 	batch_size = 250
 	learning_rate = 0.001
 
@@ -82,15 +83,12 @@ if __name__ == "__main__":
 
 	model = ConvNet(im.shape,[5,5],[5,5]).to(device)
 	model.train()
-	# print(model)
 
 	print(count_parameters(model))
 	# Loss and optimizer
 	criterion = nn.CrossEntropyLoss()
 	optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-	# print(train_loader)
-	# exit(0)
 	# Train the model
 	print("Begin training:")
 	for epoch in range(num_epochs):
@@ -100,11 +98,13 @@ if __name__ == "__main__":
 			
 			# Forward pass
 			outputs = model(images)
-			
-			loss = criterion(outputs[0], labels[:,0])
-			for i in range(1,4):
-				loss+= criterion(outputs[i], labels[:,i])
-
+			loss = 0
+			# loss = criterion(outputs[0], labels[:,0])
+			for i in range(4):
+				l = criterion(outputs[i], labels[:,i])
+				print(f"Property {list(classes.class_labels)[i]} has loss {l}")
+				loss+= l
+			print("-"*100)
 			# Backward and optimize
 			optimizer.zero_grad()
 			loss.backward()

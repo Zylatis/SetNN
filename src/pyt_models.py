@@ -69,18 +69,26 @@ class ConvNet(nn.Module):
 		self.add_module(f"{name}_layer2", layer2)
 		
 	def add_fc(self,size, name):
-		fc = nn.Linear(int(size), 4) # each branch only gives one class
+		fc = nn.Linear(int(size), 3) # each branch only gives one class
 		self.add_module(f"{name}_fc", fc)
 	
 	def forward(self, x):
 		output_set = [-1,-1,-1,-1]
 		layers = self._modules
+		# print(x.shape)
 		for k in self.pos.keys():
+			# print(k)
 			out = layers[f"{k}_layer1"](x)
+			# print(out.shape)
 			out = layers[f"{k}_layer2"](out)
+			# print(out.shape)
 			out = out.reshape(out.size(0), -1)
+			# print(out.shape)
 			out = layers[f"{k}_fc"](out)
+			# print(out.shape)
 			output_set[self.pos[k]] = out 
+			# print()
+		# exit(0)
 		return output_set
 
 def count_parameters(model):
