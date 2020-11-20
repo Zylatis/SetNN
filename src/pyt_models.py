@@ -69,7 +69,7 @@ class ConvNet(nn.Module):
 		self.add_module(f"{name}_layer2", layer2)
 		
 	def add_fc(self,size, name):
-		fc = nn.Linear(int(size), 3) # each branch only gives one class
+		fc = nn.Sequential(nn.Linear(int(size), 3)) # each branch only gives one class , nn.Sigmoid()
 		self.add_module(f"{name}_fc", fc)
 	
 	def forward(self, x):
@@ -86,7 +86,7 @@ class ConvNet(nn.Module):
 			# print(out.shape)
 			out = layers[f"{k}_fc"](out)
 			# print(out.shape)
-			output_set[self.pos[k]] = out 
+			output_set[self.pos[k]] = out
 			# print()
 		# exit(0)
 		return output_set

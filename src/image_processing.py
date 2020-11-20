@@ -20,7 +20,6 @@ AUG_LOC = "../data/train/augmented"
 RAW_LOC = "../data/train/raw"
 FILE_EXTS = ['.png']
 
-sometimes = lambda aug: iaa.Sometimes(0.5, aug)
 
 def resize_img(im, target_size, save_path = None):
 
@@ -40,51 +39,57 @@ def resize_img(im, target_size, save_path = None):
 
 	return new_im
 
+def generate_augmentations():
+	sometimes = lambda aug: iaa.Sometimes(0.5, aug)
 
-# Define our sequence of augmentation steps that will be applied to every image
-# All augmenters with per_channel=0.5 will sample one value _per image_
-# in 50% of all cases. In all other cases they will sample new values
-# _per channel_.
-seq = iaa.Sequential(
-	[
-		# apply the following augmenters to most images
-		iaa.Fliplr(0.5), # horizontally flip 50% of all images
-		iaa.Flipud(0.2), # vertically flip 20% of all images
-		
-		sometimes(iaa.Affine(
-			translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)}, # translate by -20 to +20 percent (per axis)
-			rotate=(-90, 90), # rotate by -45 to +45 degrees
-			shear=(-10, 10) # shear by -16 to +16 degrees
-		)),
-		# execute 0 to 5 of the following (less important) augmenters per image
-		# don't execute all of them, as that would often be way too strong
-		iaa.SomeOf((0, 3),
-			[
-				# sometimes(iaa.Superpixels(p_replace=(0, 1.0), n_segments=(20, 200))), # convert images into their superpixel representation
-				iaa.OneOf([
-					iaa.GaussianBlur((0, 2.0)), # blur images with a sigma between 0 and 3.0
-					iaa.AverageBlur(k=(2, 4)), # blur image using local means with kernel sizes between 2 and 7
-					iaa.MedianBlur(k=(3, 7)), # blur image using local medians with kernel sizes between 2 and 7
-				]),
-				iaa.Sharpen(alpha=(0, 0.5), lightness=(0.75, 1)), # sharpen images
-				iaa.Emboss(alpha=(0, 0.5), strength=(0, 0.1)), # emboss images
+	# Define our sequence of augmentation steps that will be applied to every image
+	# All augmenters with per_channel=0.5 will sample one value _per image_
+	# in 50% of all cases. In all other cases they will sample new values
+	# _per channel_.
+	seq = iaa.Sequential(
+		[
+			# apply the following augmenters to most images
+			iaa.Fliplr(0.5), # horizontally flip 50% of all images
+			iaa.Flipud(0.2), # vertically flip 20% of all images
 			
-				iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.05*255), per_channel=0.15), # add gaussian noise to images
-				iaa.OneOf([
-					iaa.Dropout((0.01, 0.1), per_channel=0.1), # randomly remove up to 10% of the pixels
-					iaa.CoarseDropout((0.03, 0.15), size_percent=(0.02, 0.05)),
-				]),
-				iaa.Add((-10, 10), per_channel=0.1), # change brightness of images (by -10 to 10 of original value)
-	
-				#iaa.ContrastNormalization((0.75, 1.)), # improve or worsen the contrast
-				sometimes(iaa.ElasticTransformation(alpha=(0.5, 3.5), sigma=0.25)), # move pixels locally around (with random strengths)
-				sometimes(iaa.PerspectiveTransform(scale=(0.01, 0.1)))
-			],
-			random_order=True
-		)
-	],
-	random_order=True
-)
+			sometimes(iaa.Affine(
+				translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)}, # translate by -20 to +20 percent (per axis)
+				rotate=(-90, 90), # rotate by -45 to +45 degrees
+				shear=(-10, 10) # shear by -16 to +16 degrees
+			)),
+			# execute 0 to 5 of the following (less important) augmenters per image
+			# don't execute all of them, as that would often be way too strong
+			iaa.SomeOf((0, 3),
+				[
+					# sometimes(iaa.Superpixels(p_replace=(0, 1.0), n_segments=(20, 200))), # convert images into their superpixel representation
+					iaa.OneOf([
+						iaa.GaussianBlur((0, 2.0)), # blur images with a sigma between 0 and 3.0
+						iaa.AverageBlur(k=(2, 4)), # blur image using local means with kernel sizes between 2 and 7
+						iaa.MedianBlur(k=(3, 7)), # blur image using local medians with kernel sizes between 2 and 7
+					]),
+					iaa.Sharpen(alpha=(0, 0.5), lightness=(0.75, 1)), # sharpen images
+					iaa.Emboss(alpha=(0, 0.5), strength=(0, 0.1)), # emboss images
+				
+					iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.05*255), per_channel=0.15), # add gaussian noise to images
+					iaa.OneOf([
+						iaa.Dropout((0.01, 0.1), per_channel=0.1), # randomly remove up to 10% of the pixels
+						iaa.CoarseDropout((0.03, 0.15), size_percent=(0.02, 0.05)),
+					]),
+					iaa.Add((-10, 10), per_channel=0.1), # change brightness of images (by -10 to 10 of original value)
+		
+					#iaa.ContrastNormalization((0.75, 1.)), # improve or worsen the contrast
+					sometimes(iaa.ElasticTransformation(alpha=(0.5, 3.5), sigma=0.25)), # move pixels locally around (with random strengths)
+					sometimes(iaa.PerspectiveTransform(scale=(0.01, 0.1)))
+				],
+				random_order=True
+			)
+		],
+		random_order=True
+	)
+	return seq
+
+
+seq = generate_augmentations()
 
 def augment_img(inp):
 	img_filename, n_replicates, class_vec_map = inp
@@ -113,6 +118,7 @@ def resize_training_images(train_folder, rezised_train_folder, target_size):
 	return len(raw_files)
 
 if __name__ == '__main__':
+	# Does image augmentation
 	print("="*100)
 	print("BEGIN")
 	print("="*100)	
@@ -123,7 +129,7 @@ if __name__ == '__main__':
 	# Location where raw, isolated, labelled, training images are stored
 	n_raw = resize_training_images(RAW_LOC, RESIZED_LOC, 128)
 	n_proc = 12
-	n_replicates = 50
+	n_replicates = 100
 
 	all_vec_labels = np.empty(shape=(1,4))
 	total = n_raw*n_replicates

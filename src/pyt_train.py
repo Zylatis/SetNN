@@ -1,29 +1,29 @@
+import os 
 import torch 
 import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader
 import torchvision
 import torchvision.transforms as transforms
 import numpy as np
-from PIL import Image # gives better output control than matplotlib
-import sklearn.model_selection as sk
-from pyt_models import ConvNet, count_parameters, MyDataset
 import pandas as pd
-import os 
-from tqdm import tqdm
 import classes
+import sklearn.model_selection as sk
+from tqdm import tqdm
+from pyt_models import ConvNet, count_parameters, MyDataset
+from torch.utils.data import Dataset, DataLoader
+from PIL import Image # gives better output control than matplotlib
 
 if __name__ == "__main__":
 	NORMALISE = False
 	torch.set_num_threads(4)
 
+
 	# Device configuration
 	device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-	# device = 'cpu'
-	print(device)
+	print(f'Using device: {device}')
 
 	# Hyper parameters
-	num_epochs = 20
-	batch_size = 250
+	num_epochs = 15
+	batch_size = 150
 	learning_rate = 0.001
 
 	print("### Setup ###")
@@ -32,7 +32,6 @@ if __name__ == "__main__":
 	imgs_folder = "../data/train/augmented/"
 	label_df = pd.read_csv( f"{imgs_folder}aug_vec_labels.csv")[:n_import] # to int32, also refactor to remove need for pandas
 	label_df.columns = ['file','colour','count','fill','shape']
-
 
 	print("Loading " + str( len(label_df) ) + " images: "),
 	imgs = []
@@ -52,10 +51,7 @@ if __name__ == "__main__":
 	# Here we move the channel index around to match the pytorch requirement
 	imgs = np.moveaxis(imgs, 3, 1)
 	vec_labels = label_df[['colour','count','fill','shape']].values
-	# n_use = 100 # TODO: needed with n_data?
-	# print(f"Using {n_use} randomly chosen imgs")
-	# ids = np.random.choice(n_data,size=n_use,replace=False)
-	# print(ids)
+	
 	img_train, img_test, class_train, class_test = sk.train_test_split( imgs, vec_labels, test_size = 0.1, shuffle = True )
 	img_train = img_train
 	img_test = img_test
@@ -81,14 +77,18 @@ if __name__ == "__main__":
 	)
 
 
-	model = ConvNet(im.shape,[5,5],[5,5]).to(device)
+	model = ConvNet(im.shape,[5,10],[5,10]).to(device)
 	model.train()
 
 	print(count_parameters(model))
 	# Loss and optimizer
 	criterion = nn.CrossEntropyLoss()
-	optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+	L2 = 0.0
+	L1 = 0.0
+	
+	optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay = L2)
 
+	loss_scale = [1,1,1,10]
 	# Train the model
 	print("Begin training:")
 	for epoch in range(num_epochs):
@@ -98,16 +98,22 @@ if __name__ == "__main__":
 			
 			# Forward pass
 			outputs = model(images)
-			loss = 0
-			# loss = criterion(outputs[0], labels[:,0])
+			regularization_loss = 0
+
+			for param in model.parameters():
+				regularization_loss += L1*torch.sum(torch.abs(param))
+			loss = 0  +regularization_loss
+
 			for i in range(4):
-				l = criterion(outputs[i], labels[:,i])
+				l = criterion(outputs[i], labels[:,i])*loss_scale[i]
+			
 				print(f"Property {list(classes.class_labels)[i]} has loss {l}")
 				loss+= l
 			print("-"*100)
+
 			# Backward and optimize
 			optimizer.zero_grad()
-			loss.backward()
+			loss.backward(retain_graph=True)
 			optimizer.step()
 			
 		
