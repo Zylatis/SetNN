@@ -41,23 +41,19 @@ def resize_img(im, target_size, save_path = None):
 
 def generate_augmentations():
 	sometimes = lambda aug: iaa.Sometimes(0.5, aug)
-
-	# Define our sequence of augmentation steps that will be applied to every image
-	# All augmenters with per_channel=0.5 will sample one value _per image_
-	# in 50% of all cases. In all other cases they will sample new values
-	# _per channel_.
 	seq = iaa.Sequential(
 		[
 			# apply the following augmenters to most images
-			iaa.Fliplr(0.5), # horizontally flip 50% of all images
-			iaa.Flipud(0.2), # vertically flip 20% of all images
+			iaa.Fliplr(0.3), # horizontally flip 50% of all images
+			iaa.Flipud(0.3), # vertically flip 20% of all images
 			
 			sometimes(iaa.Affine(
-				translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)}, # translate by -20 to +20 percent (per axis)
-				rotate=(-90, 90), # rotate by -45 to +45 degrees
+		       	scale={"x": (0.9, 1.1), "y": (0.9, 1.1)},
+				translate_percent={"x": (-0.1, 0.1), "y": (-0.1, 0.1)}, # translate by -20 to +20 percent (per axis)
+				rotate=(-180, 180), 
 				shear=(-10, 10) # shear by -16 to +16 degrees
 			)),
-			# execute 0 to 5 of the following (less important) augmenters per image
+			# execute 0 to 3 of the following (less important) augmenters per image
 			# don't execute all of them, as that would often be way too strong
 			iaa.SomeOf((0, 3),
 				[
@@ -73,12 +69,12 @@ def generate_augmentations():
 					iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.05*255), per_channel=0.15), # add gaussian noise to images
 					iaa.OneOf([
 						iaa.Dropout((0.01, 0.1), per_channel=0.1), # randomly remove up to 10% of the pixels
-						iaa.CoarseDropout((0.03, 0.15), size_percent=(0.02, 0.05)),
+						# iaa.CoarseDropout((0.03, 0.15), size_percent=(0.02, 0.05)),
 					]),
 					iaa.Add((-10, 10), per_channel=0.1), # change brightness of images (by -10 to 10 of original value)
 		
 					#iaa.ContrastNormalization((0.75, 1.)), # improve or worsen the contrast
-					sometimes(iaa.ElasticTransformation(alpha=(0.5, 3.5), sigma=0.25)), # move pixels locally around (with random strengths)
+					# sometimes(iaa.ElasticTransformation(alpha=(0.5, 3.5), sigma=0.25)), # move pixels locally around (with random strengths)
 					sometimes(iaa.PerspectiveTransform(scale=(0.01, 0.1)))
 				],
 				random_order=True
@@ -112,8 +108,9 @@ def resize_training_images(train_folder, rezised_train_folder, target_size):
 	raw_files = os.listdir(train_folder)
 	print("Resizing training images prior to augmentation:")
 	for file in tqdm(raw_files):
-		im = Image.open( f"{train_folder}/{file}")
-		resize_img(im, target_size, f"{rezised_train_folder}/{file}")
+		if file.lower().endswith('.png'):
+			im = Image.open( f"{train_folder}/{file}")
+			resize_img(im, target_size, f"{rezised_train_folder}/{file}")
 
 	return len(raw_files)
 
@@ -142,8 +139,10 @@ if __name__ == '__main__':
 	inputs = list(zip(file_list, [n_replicates]*n_raw, [class_vec_map]*n_raw))
 	try:
 		print("Flushing existing augmented files:")
+		shutil.rmtree(AUG_LOC + '/labelled')
 		shutil.rmtree(AUG_LOC)
 		os.mkdir(AUG_LOC)
+		os.mkdir(AUG_LOC + '/labelled')
 	except:
 		# Faster to try/except delete and create folders than delete individual files
 		pass

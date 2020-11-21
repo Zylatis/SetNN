@@ -22,13 +22,13 @@ if __name__ == "__main__":
 	print(f'Using device: {device}')
 
 	# Hyper parameters
-	num_epochs = 15
-	batch_size = 150
-	learning_rate = 0.001
+	num_epochs = 200
+	batch_size = 128
+	learning_rate = 0.0001
 
 	print("### Setup ###")
 
-	n_import = 100000
+	n_import = 100000000
 	imgs_folder = "../data/train/augmented/"
 	label_df = pd.read_csv( f"{imgs_folder}aug_vec_labels.csv")[:n_import] # to int32, also refactor to remove need for pandas
 	label_df.columns = ['file','colour','count','fill','shape']
@@ -77,18 +77,20 @@ if __name__ == "__main__":
 	)
 
 
-	model = ConvNet(im.shape,[5,10],[5,10]).to(device)
+	model = ConvNet(im.shape,[6,12],[6,12]).to(device)
+	# model = ConvNet(im.shape,[2,2],[2,2]).to(device)
+
 	model.train()
 
 	print(count_parameters(model))
 	# Loss and optimizer
 	criterion = nn.CrossEntropyLoss()
-	L2 = 0.0
-	L1 = 0.0
+	L2 = 0.00
+	L1 = 0.00
 	
 	optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay = L2)
 
-	loss_scale = [1,1,1,10]
+	loss_scale = [1,1,1,1]
 	# Train the model
 	print("Begin training:")
 	for epoch in range(num_epochs):
@@ -102,14 +104,14 @@ if __name__ == "__main__":
 
 			for param in model.parameters():
 				regularization_loss += L1*torch.sum(torch.abs(param))
-			loss = 0  +regularization_loss
+			loss = 0  + regularization_loss
 
 			for i in range(4):
 				l = criterion(outputs[i], labels[:,i])*loss_scale[i]
 			
-				print(f"Property {list(classes.class_labels)[i]} has loss {l}")
+				# print(f"Property {list(classes.class_labels)[i]} has loss {l}")
 				loss+= l
-			print("-"*100)
+			# print("-"*100)
 
 			# Backward and optimize
 			optimizer.zero_grad()
@@ -118,10 +120,13 @@ if __name__ == "__main__":
 			
 		
 		print(epoch+1, loss.item())
+		torch.save(model, f'../models/model_{epoch}.ckpt')
 
 	torch.save(model, '../models/model.ckpt')
 	loaders = {'Train' : train_loader,'Test':test_loader}
-
+	device = 'cpu'
+	model.eval()
+	model.to(device)
 	for k,loader in loaders.items():
 		with torch.no_grad():
 			correct = np.zeros(4)

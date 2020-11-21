@@ -24,11 +24,12 @@ class MyDataset(Dataset):
 
 # CNN (two convolutional layers)
 class ConvNet(nn.Module):
-	def __init__(self,dims, filters, kernel_sizes):
+	def __init__(self,dims, filters, kernel_sizes, dense_drop = 0):
 		super(ConvNet, self).__init__()
 		self.dims = dims
 		self.kernel_sizes = kernel_sizes
 		self.filters = filters
+		self.dense_drop = dense_drop
 		
 		self.pos = {"colour" : 0, "counts" : 1, "fill" : 2, "shape" : 3}
 
@@ -51,13 +52,13 @@ class ConvNet(nn.Module):
 	def branch(self, name):
 		layer1 = nn.Sequential(
 			nn.Conv2d(self.dims[2], self.filters[0], kernel_size=self.kernel_sizes[0], stride=1, padding=2),
-			nn.BatchNorm2d(self.filters[0]),
+			# nn.BatchNorm2d(self.filters[0]),
 			nn.ReLU(),
 			nn.MaxPool2d(kernel_size=2, stride=2))
 		
 		layer2 = nn.Sequential(
 			nn.Conv2d(self.filters[0], self.filters[1], kernel_size=self.kernel_sizes[1], stride=1, padding=2),
-			nn.BatchNorm2d(self.filters[1]),
+			# nn.BatchNorm2d(self.filters[1]),
 			nn.ReLU(),
 			nn.MaxPool2d(kernel_size=2, stride=2)
 			)
@@ -69,7 +70,7 @@ class ConvNet(nn.Module):
 		self.add_module(f"{name}_layer2", layer2)
 		
 	def add_fc(self,size, name):
-		fc = nn.Sequential(nn.Linear(int(size), 3)) # each branch only gives one class , nn.Sigmoid()
+		fc = nn.Sequential(nn.Linear(int(size), 3), nn.Dropout(p=self.dense_drop)) # each branch only gives one class , nn.Sigmoid()
 		self.add_module(f"{name}_fc", fc)
 	
 	def forward(self, x):
